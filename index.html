@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Volume Mute Timer v2 Â· System Volume</title>
+  <title>Volume Mute Timer v3 Â· System Volume</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     :root {
@@ -30,6 +30,8 @@
       width: 100%;
       border: 1px solid rgba(255,255,255,0.08);
       backdrop-filter: blur(10px);
+      position: relative;
+      overflow: hidden;
     }
     .header-row {
       display: flex;
@@ -214,6 +216,30 @@
       font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 0.75rem;
     }
+    .last-presets {
+      margin-top: 8px;
+    }
+    .last-presets-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      opacity: 0.7;
+      margin-bottom: 4px;
+    }
+    .preset-buttons-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .preset-chip {
+      font-size: 0.72rem;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.9);
+      cursor: pointer;
+      opacity: 0.9;
+    }
     .volume-row {
       display: flex;
       flex-direction: column;
@@ -288,32 +314,37 @@
       display: block;
       margin-top: 2px;
     }
-    .preset-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 6px;
-    }
-    .preset-buttons {
-      margin-top: 6px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-    .preset-chip {
-      font-size: 0.72rem;
-      padding: 3px 9px;
-      border-radius: 999px;
-      border: 1px solid rgba(148,163,184,0.6);
-      background: rgba(15,23,42,0.9);
-      cursor: pointer;
-      opacity: 0.9;
-    }
     .note {
       font-size: 0.7rem;
       opacity: 0.7;
       margin-top: 4px;
     }
+
+    /* Splash overlay */
+    .splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.08), rgba(0,0,0,0.9));
+      z-index: 50;
+      transition: opacity 0.5s ease;
+    }
+    .splash-inner {
+      padding: 12px 22px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(0,0,0,0.8);
+      font-size: 0.9rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .splash-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     @media (max-width: 480px) {
       .app {
         margin: 10px;
@@ -326,10 +357,14 @@
   </style>
 </head>
 <body>
+  <div class="splash" id="splash">
+    <div class="splash-inner">Jimmy James - 21.11.2025</div>
+  </div>
+
   <div class="app">
     <div class="header-row">
       <div>
-        <div class="title">Volume Mute Timer v2</div>
+        <div class="title">Volume Mute Timer v3</div>
         <div class="small-label">System volume Â· ON / OFF Â· fades</div>
       </div>
       <div class="small-label">Mode &amp; bypass always on top</div>
@@ -344,9 +379,9 @@
         </button>
         <button id="offButton" class="danger">
           OFF
-          <span class="badge">mute / dim</span>
+          <span class="badge">mute / dim (visual)</span>
         </button>
-        <button id="bypassButton" class="ghost small" title="Freeze current volume and ignore timers">
+        <button id="bypassButton" class="ghost small" title="Freeze current logical level and ignore timers">
           Bypass
         </button>
       </div>
@@ -374,15 +409,15 @@
           <div class="time-input-row">
             <input type="number" id="onMinutes" min="0" max="999" value="0" />
             <span>:</span>
-            <input type="number" id="onSeconds" min="0" max="3599" value="30" />
+            <input type="number" id="onSeconds" min="0" max="3599" value="25" />
           </div>
         </div>
         <div class="timer-block">
           <label>OFF duration (mm:ss)</label>
           <div class="time-input-row">
-            <input type="number" id="offMinutes" min="0" max="999" value="0" />
+            <input type="number" id="offMinutes" min="0" max="999" value="2" />
             <span>:</span>
-            <input type="number" id="offSeconds" min="0" max="3599" value="30" />
+            <input type="number" id="offSeconds" min="0" max="3599" value="0" />
           </div>
         </div>
       </div>
@@ -393,24 +428,28 @@
         <div class="tiny-countdown-row">
           <div>
             <span class="label">ON left</span>
-            <span class="value" id="onCountdown">00:00</span>
+            <span class="value" id="onCountdown">00:25</span>
           </div>
           <div>
             <span class="label">OFF left</span>
-            <span class="value" id="offCountdown">00:00</span>
+            <span class="value" id="offCountdown">02:00</span>
           </div>
         </div>
+      </div>
+
+      <div class="last-presets">
+        <div class="last-presets-title">Last 10 ON / OFF settings</div>
+        <div id="presetButtons" class="preset-buttons-inline"></div>
       </div>
     </div>
 
     <div class="section">
-      <div class="section-title">System volume &amp; dim</div>
+      <div class="section-title">System volume &amp; dim (visual)</div>
       <div class="volume-row">
         <div class="volume-top">
           <div>
             System volume:
-            <span class="volume-number">100%</span>
-            <span style="opacity:0.6; font-size:0.75rem;">(you control this outside the app)</span>
+            <span class="volume-number">your OS / player</span>
           </div>
           <div>
             Logical level:
@@ -423,21 +462,20 @@
         <div class="dim-row">
           <label class="inline">
             <input type="checkbox" id="dimToggle" />
-            Dim instead of full mute when OFF
+            Dim instead of full mute when OFF (visual)
           </label>
           <span style="opacity:0.75;">Dim level</span>
           <input type="number" id="dimPercent" min="1" max="99" value="20" />
           <span style="opacity:0.75;">%</span>
         </div>
         <div class="note">
-          ON = whatever your current system / YouTube volume is.<br />
-          OFF can be full mute or dimmed to a percentage of that. Fades use this logical level (0â€“100%).
+          Everything here is <strong>visual only</strong>. This page cannot change real system or YouTube volume by itself.
         </div>
       </div>
     </div>
 
     <div class="section">
-      <div class="section-title">Fades</div>
+      <div class="section-title">Fades (visual curve)</div>
       <div class="fade-grid">
         <div class="fade-block">
           <label class="inline">
@@ -448,7 +486,7 @@
             <input type="number" id="fadeOutSeconds" min="1" max="30" value="5" />
             <span>s</span>
           </div>
-          <small>At the end of ON â†’ fades down from current system volume into OFF instead of a hard cut.</small>
+          <small>At the end of ON â†’ fades down from current logical level into OFF instead of a hard cut.</small>
         </div>
         <div class="fade-block">
           <label class="inline">
@@ -459,19 +497,8 @@
             <input type="number" id="fadeInSeconds" min="1" max="30" value="5" />
             <span>s</span>
           </div>
-          <small>At OFF â†’ ON transitions, fades up into your system volume.</small>
+          <small>At OFF â†’ ON transitions, fades up into full logical level (100%).</small>
         </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="preset-header-row">
-        <div class="section-title">Quick presets Â· last 10</div>
-        <button id="savePresetButton" class="ghost small">Save current</button>
-      </div>
-      <div id="presetButtons" class="preset-buttons"></div>
-      <div class="note">
-        Presets remember ON/OFF times only. Newest one appears first.
       </div>
     </div>
 
@@ -480,19 +507,23 @@
       <div class="note">
         â€¢ <strong>ON</strong>: starts the ON timer and resumes the cycle (ON â†’ OFF â†’ ON ...).<br />
         â€¢ <strong>Manual OFF</strong>: pauses everything indefinitely in OFF until you press ON again.<br />
-        â€¢ <strong>Bypass</strong>: freezes the current logical volume and ignores timers while bypass is on.<br />
-        â€¢ Fades work from the <em>current system volume</em> down to mute/dim or back up again.
-      </div>
-      <div class="note" style="margin-top:6px;">
-        Important: this standalone HTML page cannot actually change system / YouTube volume by itself.
-        It just gives you the timing and logical fade curve. To hook it into real audio, youâ€™d need a
-        browser extension or small app that reads these values and applies them to system or tab volume.
+        â€¢ <strong>Bypass</strong>: freezes the current logical level and ignores timers while bypass is on.<br />
+        â€¢ Fades, dim, and the bar are all visual. To actually mute/unmute YouTube or system audio, you need a browser extension or separate app that reads these timings and applies them to real volume.
       </div>
     </div>
   </div>
 
   <script>
     (function() {
+      // Splash logic
+      const splash = document.getElementById('splash');
+      setTimeout(() => {
+        splash.classList.add('splash-hidden');
+        setTimeout(() => {
+          splash.style.display = 'none';
+        }, 600);
+      }, 5000);
+
       const onButton = document.getElementById('onButton');
       const offButton = document.getElementById('offButton');
       const bypassButton = document.getElementById('bypassButton');
@@ -517,7 +548,6 @@
       const fadeInToggle = document.getElementById('fadeInToggle');
       const fadeInSecondsInput = document.getElementById('fadeInSeconds');
 
-      const savePresetButton = document.getElementById('savePresetButton');
       const presetButtonsContainer = document.getElementById('presetButtons');
 
       const effectiveVolumeLabel = document.getElementById('effectiveVolumeLabel');
@@ -535,12 +565,12 @@
       let manualPaused = true;   // manual OFF pressed
       let bypass = false;
 
-      let baseVolume = 1.0;      // logical "current system volume" (0..1)
-      let effectiveVolume = 0;   // logical volume for fades (0..1)
+      let baseVolume = 1.0;      // logical "full" level (0..1)
+      let effectiveVolume = 0;   // logical level for fades (0..1)
 
-      // durations in seconds
-      let onDuration = 30;
-      let offDuration = 30;
+      // default durations: ON 25s, OFF 120s
+      let onDuration = 25;
+      let offDuration = 120;
 
       let remainingOn = onDuration;
       let remainingOff = offDuration;
@@ -554,7 +584,7 @@
       let fadeFrom = 0;
       let fadeTo = 0;
 
-      // presets
+      // last 10 presets (auto from usage)
       let presets = [];
 
       function clampNumber(value, min, max, fallback) {
@@ -578,12 +608,12 @@
         onDuration = Math.max(0, onM * 60 + onS);
         offDuration = Math.max(0, offM * 60 + offS);
         if (onDuration === 0 && offDuration === 0) {
-          onDuration = 30;
-          offDuration = 30;
+          onDuration = 25;
+          offDuration = 120;
           onMinutesInput.value = 0;
-          onSecondsInput.value = 30;
-          offMinutesInput.value = 0;
-          offSecondsInput.value = 30;
+          onSecondsInput.value = 25;
+          offMinutesInput.value = 2;
+          offSecondsInput.value = 0;
         }
       }
 
@@ -657,6 +687,44 @@
         if (t >= 1) {
           fadeActive = false;
         }
+      }
+
+      function recordPresetFromCurrent() {
+        const preset = { on: onDuration, off: offDuration };
+        const key = preset.on + '|' + preset.off;
+        presets = presets.filter(p => (p.on + '|' + p.off) !== key);
+        presets.unshift(preset);
+        if (presets.length > 10) presets = presets.slice(0, 10);
+        renderPresets();
+      }
+
+      function renderPresets() {
+        presetButtonsContainer.innerHTML = '';
+        if (presets.length === 0) {
+          const span = document.createElement('span');
+          span.style.opacity = '0.6';
+          span.style.fontSize = '0.7rem';
+          span.textContent = 'No history yet. Press ON to start using a setting.';
+          presetButtonsContainer.appendChild(span);
+          return;
+        }
+        presets.forEach((p) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'preset-chip';
+          btn.textContent = `ON ${mmss(p.on)} Â· OFF ${mmss(p.off)}`;
+          btn.title = 'Click to load this setting';
+          btn.addEventListener('click', () => {
+            onMinutesInput.value = Math.floor(p.on / 60);
+            onSecondsInput.value = p.on % 60;
+            offMinutesInput.value = Math.floor(p.off / 60);
+            offSecondsInput.value = p.off % 60;
+            readDurationsFromInputs();
+            syncRemainingToDurations();
+            updateCountdownText();
+          });
+          presetButtonsContainer.appendChild(btn);
+        });
       }
 
       function setMode(newMode, options = {}) {
@@ -744,38 +812,6 @@
         updateModePill();
       }
 
-      function savePreset() {
-        readDurationsFromInputs();
-        const preset = { on: onDuration, off: offDuration };
-        const key = preset.on + '|' + preset.off;
-
-        presets = presets.filter(p => (p.on + '|' + p.off) !== key);
-        presets.unshift(preset);
-        if (presets.length > 10) presets = presets.slice(0, 10);
-        renderPresets();
-      }
-
-      function renderPresets() {
-        presetButtonsContainer.innerHTML = '';
-        presets.forEach((p) => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'preset-chip';
-          btn.textContent = `ON ${mmss(p.on)} Â· OFF ${mmss(p.off)}`;
-          btn.title = 'Click to load this preset';
-          btn.addEventListener('click', () => {
-            onMinutesInput.value = Math.floor(p.on / 60);
-            onSecondsInput.value = p.on % 60;
-            offMinutesInput.value = Math.floor(p.off / 60);
-            offSecondsInput.value = p.off % 60;
-            readDurationsFromInputs();
-            syncRemainingToDurations();
-            updateCountdownText();
-          });
-          presetButtonsContainer.appendChild(btn);
-        });
-      }
-
       // --- Event wiring ---
       onButton.addEventListener('click', () => {
         manualPaused = false;
@@ -783,6 +819,7 @@
         updateBypassUI();
         readDurationsFromInputs();
         syncRemainingToDurations();
+        recordPresetFromCurrent();
         setMode('ON', { viaTimer: false });
         setRunning(true);
       });
@@ -823,13 +860,13 @@
       });
 
       resetTimerButton.addEventListener('click', () => {
+        onMinutesInput.value = 0;
+        onSecondsInput.value = 25;
+        offMinutesInput.value = 2;
+        offSecondsInput.value = 0;
         readDurationsFromInputs();
         syncRemainingToDurations();
         updateCountdownText();
-      });
-
-      savePresetButton.addEventListener('click', () => {
-        savePreset();
       });
 
       // --- Initial state ---
@@ -840,6 +877,7 @@
       updateModePill();
       updateButtonsState();
       updateBypassUI();
+      renderPresets();
     })();
   </script>
 </body>
