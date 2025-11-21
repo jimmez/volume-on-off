@@ -1,11 +1,9 @@
-from textwrap import dedent
 
-html_content = dedent("""
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Volume Mute Timer v41</title>
+  <title>Volume Mute Timer v2 Â· System Volume</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     :root {
@@ -200,10 +198,6 @@ html_content = dedent("""
       -webkit-appearance: none;
       margin: 0;
     }
-    input[type="range"] {
-      width: 100%;
-      cursor: pointer;
-    }
     .tiny-countdown-row {
       display: flex;
       justify-content: space-between;
@@ -238,7 +232,7 @@ html_content = dedent("""
       font-size: 0.88rem;
     }
     .volume-meter {
-      height: 8px;
+      height: 6px;
       border-radius: 999px;
       background: rgba(31,41,55,0.9);
       overflow: hidden;
@@ -251,14 +245,6 @@ html_content = dedent("""
       background: linear-gradient(90deg,#22c55e,#a3e635);
       box-shadow: 0 0 10px rgba(34,197,94,0.7);
       transition: width 0.12s linear;
-    }
-    .volume-meter-cut {
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 3px;
-      background: rgba(15,23,42,0.7);
     }
     .dim-row {
       display: flex;
@@ -343,10 +329,10 @@ html_content = dedent("""
   <div class="app">
     <div class="header-row">
       <div>
-        <div class="title">Volume Mute Timer v41</div>
-        <div class="small-label">ON / OFF + fades · last 10 presets</div>
+        <div class="title">Volume Mute Timer v2</div>
+        <div class="small-label">System volume Â· ON / OFF Â· fades</div>
       </div>
-      <div class="small-label">Mode &amp; bypass are always on top</div>
+      <div class="small-label">Mode &amp; bypass always on top</div>
     </div>
 
     <div class="section" id="modeSection">
@@ -354,11 +340,11 @@ html_content = dedent("""
       <div class="mode-buttons">
         <button id="onButton" class="primary">
           ON
-          <span class="badge">volume on</span>
+          <span class="badge">system volume</span>
         </button>
         <button id="offButton" class="danger">
           OFF
-          <span class="badge">volume off</span>
+          <span class="badge">mute / dim</span>
         </button>
         <button id="bypassButton" class="ghost small" title="Freeze current volume and ignore timers">
           Bypass
@@ -368,7 +354,7 @@ html_content = dedent("""
         <div>
           <span id="modePill" class="pill paused">
             <span class="pill-dot"></span>
-            <span class="pill-text" id="modeText">OFF · paused</span>
+            <span class="pill-text" id="modeText">OFF Â· paused</span>
           </span>
         </div>
         <div>
@@ -418,23 +404,21 @@ html_content = dedent("""
     </div>
 
     <div class="section">
-      <div class="section-title">Volume &amp; dim</div>
+      <div class="section-title">System volume &amp; dim</div>
       <div class="volume-row">
         <div class="volume-top">
           <div>
-            Base volume level:
-            <span class="volume-number" id="volumeLabel">7</span>
-            <span style="opacity:0.6; font-size:0.75rem;">(0–10)</span>
+            System volume:
+            <span class="volume-number">100%</span>
+            <span style="opacity:0.6; font-size:0.75rem;">(you control this outside the app)</span>
           </div>
           <div>
-            Effective:
-            <span class="volume-number" id="effectiveVolumeLabel">0</span>
+            Logical level:
+            <span class="volume-number" id="effectiveVolumeLabel">0%</span>
           </div>
         </div>
-        <input type="range" id="volumeSlider" min="0" max="10" step="1" value="7" />
         <div class="volume-meter" aria-hidden="true">
           <div class="volume-meter-fill" id="volumeMeterFill"></div>
-          <div class="volume-meter-cut"></div>
         </div>
         <div class="dim-row">
           <label class="inline">
@@ -443,11 +427,11 @@ html_content = dedent("""
           </label>
           <span style="opacity:0.75;">Dim level</span>
           <input type="number" id="dimPercent" min="1" max="99" value="20" />
-          <span style="opacity:0.75%;">%</span>
+          <span style="opacity:0.75;">%</span>
         </div>
         <div class="note">
-          ON always uses the current base volume. You can move the slider while everything is running –
-          when it comes back to ON, it returns to that level (with fades if enabled).
+          ON = whatever your current system / YouTube volume is.<br />
+          OFF can be full mute or dimmed to a percentage of that. Fades use this logical level (0â€“100%).
         </div>
       </div>
     </div>
@@ -464,7 +448,7 @@ html_content = dedent("""
             <input type="number" id="fadeOutSeconds" min="1" max="30" value="5" />
             <span>s</span>
           </div>
-          <small>At the end of ON → fades down into OFF instead of a hard cut.</small>
+          <small>At the end of ON â†’ fades down from current system volume into OFF instead of a hard cut.</small>
         </div>
         <div class="fade-block">
           <label class="inline">
@@ -475,34 +459,34 @@ html_content = dedent("""
             <input type="number" id="fadeInSeconds" min="1" max="30" value="5" />
             <span>s</span>
           </div>
-          <small>At OFF → ON transitions, fades up into the base volume.</small>
+          <small>At OFF â†’ ON transitions, fades up into your system volume.</small>
         </div>
       </div>
     </div>
 
     <div class="section">
       <div class="preset-header-row">
-        <div class="section-title">Quick presets · last 10</div>
+        <div class="section-title">Quick presets Â· last 10</div>
         <button id="savePresetButton" class="ghost small">Save current</button>
       </div>
       <div id="presetButtons" class="preset-buttons"></div>
       <div class="note">
-        Presets remember ON/OFF times only. The newest one appears first.
+        Presets remember ON/OFF times only. Newest one appears first.
       </div>
     </div>
 
     <div class="section">
       <div class="section-title">How it behaves</div>
       <div class="note">
-        • <strong>ON</strong>: starts the ON timer and resumes the cycle (ON → OFF → ON ...).<br />
-        • <strong>Manual OFF</strong>: pauses everything indefinitely in OFF until you press ON again.<br />
-        • <strong>Bypass</strong>: freezes the current volume and ignores timers while bypass is on.<br />
-        • The tiny countdowns show time left for the current ON / OFF cycle, kept visually small.
+        â€¢ <strong>ON</strong>: starts the ON timer and resumes the cycle (ON â†’ OFF â†’ ON ...).<br />
+        â€¢ <strong>Manual OFF</strong>: pauses everything indefinitely in OFF until you press ON again.<br />
+        â€¢ <strong>Bypass</strong>: freezes the current logical volume and ignores timers while bypass is on.<br />
+        â€¢ Fades work from the <em>current system volume</em> down to mute/dim or back up again.
       </div>
       <div class="note" style="margin-top:6px;">
-        Important: a standalone HTML page cannot control system volume or YouTube in another tab.
-        It can only drive a volume <em>value</em>. To control other apps or browser tabs you would
-        need an actual app or browser extension that has access to system / tab audio.
+        Important: this standalone HTML page cannot actually change system / YouTube volume by itself.
+        It just gives you the timing and logical fade curve. To hook it into real audio, youâ€™d need a
+        browser extension or small app that reads these values and applies them to system or tab volume.
       </div>
     </div>
   </div>
@@ -525,11 +509,6 @@ html_content = dedent("""
       const onCountdown = document.getElementById('onCountdown');
       const offCountdown = document.getElementById('offCountdown');
 
-      const volumeSlider = document.getElementById('volumeSlider');
-      const volumeLabel = document.getElementById('volumeLabel');
-      const effectiveVolumeLabel = document.getElementById('effectiveVolumeLabel');
-      const volumeMeterFill = document.getElementById('volumeMeterFill');
-
       const dimToggle = document.getElementById('dimToggle');
       const dimPercentInput = document.getElementById('dimPercent');
 
@@ -541,13 +520,23 @@ html_content = dedent("""
       const savePresetButton = document.getElementById('savePresetButton');
       const presetButtonsContainer = document.getElementById('presetButtons');
 
+      const effectiveVolumeLabel = document.getElementById('effectiveVolumeLabel');
+      const volumeMeterFill = document.getElementById('volumeMeterFill');
+
+      // select-on-click for all number inputs
+      document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('focus', (e) => {
+          e.target.select();
+        });
+      });
+
       let mode = 'OFF';          // 'ON' or 'OFF'
       let running = false;       // timers active
       let manualPaused = true;   // manual OFF pressed
       let bypass = false;
 
-      let baseVolume = 0.7;      // 0..1 (slider 0..10)
-      let effectiveVolume = 0;   // 0..1
+      let baseVolume = 1.0;      // logical "current system volume" (0..1)
+      let effectiveVolume = 0;   // logical volume for fades (0..1)
 
       // durations in seconds
       let onDuration = 30;
@@ -612,11 +601,11 @@ html_content = dedent("""
         const modeLabel = mode === 'ON' ? 'ON' : 'OFF';
         let extra = '';
         if (bypass) {
-          extra = '· bypass';
+          extra = 'Â· bypass';
         } else if (!running || manualPaused) {
-          extra = '· paused';
+          extra = 'Â· paused';
         } else {
-          extra = '· running';
+          extra = 'Â· running';
         }
         modeText.textContent = modeLabel + ' ' + extra;
 
@@ -645,20 +634,10 @@ html_content = dedent("""
 
       function setEffectiveVolume(value) {
         effectiveVolume = Math.max(0, Math.min(1, value));
-        const displayLevel = (effectiveVolume * 10).toFixed(1).replace(/\\.0$/, '');
-        effectiveVolumeLabel.textContent = displayLevel;
-
+        const pct = Math.round(effectiveVolume * 100);
+        effectiveVolumeLabel.textContent = pct + '%';
         const width = Math.round(effectiveVolume * 100);
         volumeMeterFill.style.width = width + '%';
-      }
-
-      function updateBaseVolumeFromSlider() {
-        const sliderValue = clampNumber(volumeSlider.value, 0, 10, 7);
-        baseVolume = sliderValue / 10;
-        volumeLabel.textContent = sliderValue.toString();
-        if (mode === 'ON' && !fadeActive && !bypass) {
-          setEffectiveVolume(baseVolume);
-        }
       }
 
       function startFade(from, to, seconds) {
@@ -686,7 +665,6 @@ html_content = dedent("""
         readDurationsFromInputs();
         syncRemainingToDurations();
 
-        // Choose target volume
         if (mode === 'ON') {
           if (viaTimer && fadeInToggle.checked && !bypass) {
             startFade(effectiveVolume, baseVolume, clampNumber(fadeInSecondsInput.value, 1, 30, 5));
@@ -779,11 +757,11 @@ html_content = dedent("""
 
       function renderPresets() {
         presetButtonsContainer.innerHTML = '';
-        presets.forEach((p, index) => {
+        presets.forEach((p) => {
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'preset-chip';
-          btn.textContent = `ON ${mmss(p.on)} · OFF ${mmss(p.off)}`;
+          btn.textContent = `ON ${mmss(p.on)} Â· OFF ${mmss(p.off)}`;
           btn.title = 'Click to load this preset';
           btn.addEventListener('click', () => {
             onMinutesInput.value = Math.floor(p.on / 60);
@@ -820,15 +798,7 @@ html_content = dedent("""
       bypassButton.addEventListener('click', () => {
         bypass = !bypass;
         updateBypassUI();
-        if (!bypass) {
-          // resume normal behavior at current mode
-          updateBaseVolumeFromSlider();
-        }
         updateModePill();
-      });
-
-      volumeSlider.addEventListener('input', () => {
-        updateBaseVolumeFromSlider();
       });
 
       [onMinutesInput, onSecondsInput, offMinutesInput, offSecondsInput].forEach(input => {
@@ -865,7 +835,6 @@ html_content = dedent("""
       // --- Initial state ---
       readDurationsFromInputs();
       syncRemainingToDurations();
-      updateBaseVolumeFromSlider();
       setEffectiveVolume(0);
       updateCountdownText();
       updateModePill();
@@ -875,10 +844,3 @@ html_content = dedent("""
   </script>
 </body>
 </html>
-""")
-
-file_path = "/mnt/data/volume_mute_v41.html"
-with open(file_path, "w", encoding="utf-8") as f:
-    f.write(html_content)
-
-file_path
