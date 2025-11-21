@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>YT play/pause - v41</title>
+<title>YT play/pause - v42</title>
 <style>
   :root {
     --bg:#0b0b0c; --fg:#f5f7fa; --muted:#a4acb6; --card:#15161a;
@@ -106,7 +106,7 @@
   </div>
 
   <div class="card page active" id="pagePlayer">
-    <h1 style="font-size:20px;margin:0 0 8px;color:#e2e8f0">YT play/pause - v41</h1>
+    <h1 style="font-size:20px;margin:0 0 8px;color:#e2e8f0">YT play/pause - v42</h1>
 
     <!-- Quick links to URL pages & quick add URL -->
     <div class="row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap">
@@ -248,7 +248,7 @@
   </div>
 </div>
 
-<div id="wm" class="watermark">Jimmy James - 22.11.2025 - v41</div>
+<div id="wm" class="watermark">Jimmy James - 22.11.2025 - v42</div>
 
 <script>
 (function(){
@@ -874,7 +874,7 @@ function onStateChange(e){
 function onError(e){ console.warn('YT error', e && e.data); }
 let pendingLoad=null;
 function ensurePlayer(id, startSeconds){
-  const origin = (location.origin and location.origin!=='null') ? location.origin : undefined;
+  const origin = (location.origin && location.origin!=='null') ? location.origin : undefined;
   if(!player){
     pendingLoad = {id, start: (typeof startSeconds==='number' ? Math.max(0,Math.floor(startSeconds)) : 0)};
     player = new YT.Player('player',{
@@ -896,7 +896,7 @@ async function gestureSafePlay(){
   try{ player.mute(); }catch(e){}
   try{ player.playVideo(); }catch(e){}
   const ok2 = await waitForPlaying(10);
-  if (ok2 and !wasMuted){ setTimeout(()=>{ try{ player.unMute(); }catch(e){} }, 500); }
+  if (ok2 && !wasMuted){ setTimeout(()=>{ try{ player.unMute(); }catch(e){} }, 500); }
   return ok2;
 }
 function waitForPlaying(maxTries){
@@ -904,7 +904,7 @@ function waitForPlaying(maxTries){
     let tries=0;
     const iv=setInterval(()=>{
       tries++;
-      const st=player.getPlayerState and player.getPlayerState();
+      const st=player.getPlayerState && player.getPlayerState();
       if (st===YT.PlayerState.PLAYING || st===YT.PlayerState.BUFFERING){ clearInterval(iv); res(true); }
       if (tries>maxTries){ clearInterval(iv); res(false); }
     },80);
@@ -989,7 +989,7 @@ async function startPlayStepper(){
 function pauseNow(){
   stepRunning=false;
   clearTimers();
-  try{ const id=items[currentIndex]?.id; const t=player.getCurrentTime and player.getCurrentTime(); if(id and typeof t==='number'){ recordLastPos(id, t); } }catch(e){}
+  try{ const id=items[currentIndex]?.id; const t=player.getCurrentTime && player.getCurrentTime(); if(id && typeof t==='number'){ recordLastPos(id, t); } }catch(e){}
   try{ player.pauseVideo(); }catch(e){}
   if (document.getElementById('dimToggle').checked) pauseCoverPlayer.style.display='block';
   setPauseUIActive(true);
@@ -1008,7 +1008,7 @@ function loadByIndex(idx, startCycle, resumeSeconds){
 }
 
 document.addEventListener('keydown',(e)=>{
-  if(e.target and (/INPUT|TEXTAREA|SELECT/).test(e.target.tagName)) return;
+  if(e.target && (/INPUT|TEXTAREA|SELECT/).test(e.target.tagName)) return;
   if(e.key===' '){ startPlayStepper(); e.preventDefault();
   }else if(e.key==='Pause'){ pauseNow(); e.preventDefault();
   }else if(e.key==='ArrowRight'){ const ni=nextIndex(); if(ni>=0){ loadByIndex(ni,true);} e.preventDefault();
@@ -1052,7 +1052,7 @@ document.getElementById('fetchTitlesBtn').addEventListener('click', (e)=>{
   const all = e.shiftKey === true; fetchTitlesForList(!all);
 });
 document.getElementById('importFile').addEventListener('change', (e)=>{
-  const f=e.target.files and e.target.files[0];
+  const f=e.target.files && e.target.files[0];
   if(f) importJSONFile(f);
   e.target.value='';
 });
