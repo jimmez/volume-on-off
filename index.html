@@ -1,0 +1,884 @@
+from textwrap import dedent
+
+html_content = dedent("""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Volume Mute Timer v41</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at top, #333 0, #111 55%, #000 100%);
+      color: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .app {
+      margin: 16px;
+      padding: 16px 18px 20px;
+      background: rgba(20,20,20,0.9);
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.7);
+      max-width: 480px;
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+    }
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .small-label {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .section {
+      margin-bottom: 14px;
+      padding: 10px 10px 10px;
+      border-radius: 12px;
+      background: radial-gradient(circle at top left, rgba(255,255,255,0.08), rgba(0,0,0,0.5));
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .section-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      opacity: 0.8;
+      margin-bottom: 6px;
+    }
+    .mode-buttons {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    button {
+      border-radius: 999px;
+      border: none;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: #333;
+      color: #f5f5f5;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s ease, opacity 0.12s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button span.badge {
+      font-size: 0.7rem;
+      opacity: 0.8;
+    }
+    button.primary {
+      background: linear-gradient(145deg,#18a34a,#22c55e);
+      color: #051b0b;
+    }
+    button.danger {
+      background: linear-gradient(145deg,#b91c1c,#ef4444);
+      color: #fff5f5;
+    }
+    button.secondary {
+      background: linear-gradient(145deg,#374151,#4b5563);
+    }
+    button.ghost {
+      background: rgba(55,65,81,0.2);
+      border: 1px solid rgba(156,163,175,0.4);
+      box-shadow: none;
+    }
+    button.small {
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      box-shadow: none;
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    }
+    button.active-ring {
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.8), 0 0 10px rgba(34,197,94,0.6);
+    }
+    button.bypass-on {
+      box-shadow: 0 0 0 1px rgba(251,191,36,0.85), 0 0 10px rgba(245,158,11,0.7);
+      background: linear-gradient(145deg,#92400e,#f59e0b);
+      color: #fffbeb;
+    }
+    .mode-indicator {
+      font-size: 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      align-items: baseline;
+      margin-top: 4px;
+    }
+    .pill {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(15,118,110,0.2);
+    }
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 6px rgba(34,197,94,0.8);
+    }
+    .pill.paused {
+      background: rgba(148,163,184,0.25);
+    }
+    .pill.paused .pill-dot {
+      background: #9ca3af;
+      box-shadow: none;
+    }
+    .pill-text {
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.65rem;
+    }
+    .pill-bypass {
+      background: rgba(234,179,8,0.18);
+    }
+    .pill-bypass .pill-dot {
+      background: #facc15;
+      box-shadow: 0 0 6px rgba(234,179,8,0.8);
+    }
+    .timers-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .timer-block {
+      font-size: 0.78rem;
+    }
+    label {
+      font-size: 0.75rem;
+      opacity: 0.85;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .time-input-row {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    input[type="number"] {
+      width: 64px;
+      padding: 3px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: rgba(15,23,42,0.8);
+      color: #e5e7eb;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+    }
+    .tiny-countdown-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      opacity: 0.85;
+      margin-top: 4px;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tiny-countdown-row span.label {
+      opacity: 0.75;
+    }
+    .tiny-countdown-row span.value {
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.75rem;
+    }
+    .volume-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+    }
+    .volume-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 0.8rem;
+    }
+    .volume-number {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.88rem;
+    }
+    .volume-meter {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(31,41,55,0.9);
+      overflow: hidden;
+      margin-top: 4px;
+      position: relative;
+    }
+    .volume-meter-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg,#22c55e,#a3e635);
+      box-shadow: 0 0 10px rgba(34,197,94,0.7);
+      transition: width 0.12s linear;
+    }
+    .volume-meter-cut {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: rgba(15,23,42,0.7);
+    }
+    .dim-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      font-size: 0.78rem;
+      margin-top: 6px;
+    }
+    .dim-row label.inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 0;
+    }
+    .dim-row input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: #22c55e;
+    }
+    .fade-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      font-size: 0.78rem;
+    }
+    .fade-block label.inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+    .fade-block input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: #22c55e;
+    }
+    .fade-block small {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      display: block;
+      margin-top: 2px;
+    }
+    .preset-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .preset-buttons {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .preset-chip {
+      font-size: 0.72rem;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.9);
+      cursor: pointer;
+      opacity: 0.9;
+    }
+    .note {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+    @media (max-width: 480px) {
+      .app {
+        margin: 10px;
+        padding: 12px 12px 16px;
+      }
+      .title {
+        font-size: 1.1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header-row">
+      <div>
+        <div class="title">Volume Mute Timer v41</div>
+        <div class="small-label">ON / OFF + fades · last 10 presets</div>
+      </div>
+      <div class="small-label">Mode &amp; bypass are always on top</div>
+    </div>
+
+    <div class="section" id="modeSection">
+      <div class="section-title">Mode</div>
+      <div class="mode-buttons">
+        <button id="onButton" class="primary">
+          ON
+          <span class="badge">volume on</span>
+        </button>
+        <button id="offButton" class="danger">
+          OFF
+          <span class="badge">volume off</span>
+        </button>
+        <button id="bypassButton" class="ghost small" title="Freeze current volume and ignore timers">
+          Bypass
+        </button>
+      </div>
+      <div class="mode-indicator">
+        <div>
+          <span id="modePill" class="pill paused">
+            <span class="pill-dot"></span>
+            <span class="pill-text" id="modeText">OFF · paused</span>
+          </span>
+        </div>
+        <div>
+          <span id="bypassPill" class="pill pill-bypass" style="display:none;">
+            <span class="pill-dot"></span>
+            <span class="pill-text">BYPASS</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Timers</div>
+      <div class="timers-grid">
+        <div class="timer-block">
+          <label>ON duration (mm:ss)</label>
+          <div class="time-input-row">
+            <input type="number" id="onMinutes" min="0" max="999" value="0" />
+            <span>:</span>
+            <input type="number" id="onSeconds" min="0" max="3599" value="30" />
+          </div>
+        </div>
+        <div class="timer-block">
+          <label>OFF duration (mm:ss)</label>
+          <div class="time-input-row">
+            <input type="number" id="offMinutes" min="0" max="999" value="0" />
+            <span>:</span>
+            <input type="number" id="offSeconds" min="0" max="3599" value="30" />
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; gap:6px; flex-wrap:wrap;">
+        <div>
+          <button id="resetTimerButton" class="secondary small">Reset timer</button>
+        </div>
+        <div class="tiny-countdown-row">
+          <div>
+            <span class="label">ON left</span>
+            <span class="value" id="onCountdown">00:00</span>
+          </div>
+          <div>
+            <span class="label">OFF left</span>
+            <span class="value" id="offCountdown">00:00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Volume &amp; dim</div>
+      <div class="volume-row">
+        <div class="volume-top">
+          <div>
+            Base volume level:
+            <span class="volume-number" id="volumeLabel">7</span>
+            <span style="opacity:0.6; font-size:0.75rem;">(0–10)</span>
+          </div>
+          <div>
+            Effective:
+            <span class="volume-number" id="effectiveVolumeLabel">0</span>
+          </div>
+        </div>
+        <input type="range" id="volumeSlider" min="0" max="10" step="1" value="7" />
+        <div class="volume-meter" aria-hidden="true">
+          <div class="volume-meter-fill" id="volumeMeterFill"></div>
+          <div class="volume-meter-cut"></div>
+        </div>
+        <div class="dim-row">
+          <label class="inline">
+            <input type="checkbox" id="dimToggle" />
+            Dim instead of full mute when OFF
+          </label>
+          <span style="opacity:0.75;">Dim level</span>
+          <input type="number" id="dimPercent" min="1" max="99" value="20" />
+          <span style="opacity:0.75%;">%</span>
+        </div>
+        <div class="note">
+          ON always uses the current base volume. You can move the slider while everything is running –
+          when it comes back to ON, it returns to that level (with fades if enabled).
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Fades</div>
+      <div class="fade-grid">
+        <div class="fade-block">
+          <label class="inline">
+            <input type="checkbox" id="fadeOutToggle" />
+            Fade out
+          </label>
+          <div class="time-input-row">
+            <input type="number" id="fadeOutSeconds" min="1" max="30" value="5" />
+            <span>s</span>
+          </div>
+          <small>At the end of ON → fades down into OFF instead of a hard cut.</small>
+        </div>
+        <div class="fade-block">
+          <label class="inline">
+            <input type="checkbox" id="fadeInToggle" />
+            Fade in
+          </label>
+          <div class="time-input-row">
+            <input type="number" id="fadeInSeconds" min="1" max="30" value="5" />
+            <span>s</span>
+          </div>
+          <small>At OFF → ON transitions, fades up into the base volume.</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="preset-header-row">
+        <div class="section-title">Quick presets · last 10</div>
+        <button id="savePresetButton" class="ghost small">Save current</button>
+      </div>
+      <div id="presetButtons" class="preset-buttons"></div>
+      <div class="note">
+        Presets remember ON/OFF times only. The newest one appears first.
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">How it behaves</div>
+      <div class="note">
+        • <strong>ON</strong>: starts the ON timer and resumes the cycle (ON → OFF → ON ...).<br />
+        • <strong>Manual OFF</strong>: pauses everything indefinitely in OFF until you press ON again.<br />
+        • <strong>Bypass</strong>: freezes the current volume and ignores timers while bypass is on.<br />
+        • The tiny countdowns show time left for the current ON / OFF cycle, kept visually small.
+      </div>
+      <div class="note" style="margin-top:6px;">
+        Important: a standalone HTML page cannot control system volume or YouTube in another tab.
+        It can only drive a volume <em>value</em>. To control other apps or browser tabs you would
+        need an actual app or browser extension that has access to system / tab audio.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const onButton = document.getElementById('onButton');
+      const offButton = document.getElementById('offButton');
+      const bypassButton = document.getElementById('bypassButton');
+      const modePill = document.getElementById('modePill');
+      const modeText = document.getElementById('modeText');
+      const bypassPill = document.getElementById('bypassPill');
+
+      const onMinutesInput = document.getElementById('onMinutes');
+      const onSecondsInput = document.getElementById('onSeconds');
+      const offMinutesInput = document.getElementById('offMinutes');
+      const offSecondsInput = document.getElementById('offSeconds');
+      const resetTimerButton = document.getElementById('resetTimerButton');
+
+      const onCountdown = document.getElementById('onCountdown');
+      const offCountdown = document.getElementById('offCountdown');
+
+      const volumeSlider = document.getElementById('volumeSlider');
+      const volumeLabel = document.getElementById('volumeLabel');
+      const effectiveVolumeLabel = document.getElementById('effectiveVolumeLabel');
+      const volumeMeterFill = document.getElementById('volumeMeterFill');
+
+      const dimToggle = document.getElementById('dimToggle');
+      const dimPercentInput = document.getElementById('dimPercent');
+
+      const fadeOutToggle = document.getElementById('fadeOutToggle');
+      const fadeOutSecondsInput = document.getElementById('fadeOutSeconds');
+      const fadeInToggle = document.getElementById('fadeInToggle');
+      const fadeInSecondsInput = document.getElementById('fadeInSeconds');
+
+      const savePresetButton = document.getElementById('savePresetButton');
+      const presetButtonsContainer = document.getElementById('presetButtons');
+
+      let mode = 'OFF';          // 'ON' or 'OFF'
+      let running = false;       // timers active
+      let manualPaused = true;   // manual OFF pressed
+      let bypass = false;
+
+      let baseVolume = 0.7;      // 0..1 (slider 0..10)
+      let effectiveVolume = 0;   // 0..1
+
+      // durations in seconds
+      let onDuration = 30;
+      let offDuration = 30;
+
+      let remainingOn = onDuration;
+      let remainingOff = offDuration;
+
+      let timerInterval = null;
+
+      // fade state
+      let fadeActive = false;
+      let fadeStartTime = 0;
+      let fadeDuration = 0;
+      let fadeFrom = 0;
+      let fadeTo = 0;
+
+      // presets
+      let presets = [];
+
+      function clampNumber(value, min, max, fallback) {
+        const n = Number(value);
+        if (Number.isNaN(n)) return fallback;
+        return Math.min(max, Math.max(min, n));
+      }
+
+      function mmss(totalSeconds) {
+        totalSeconds = Math.max(0, Math.round(totalSeconds));
+        const m = Math.floor(totalSeconds / 60);
+        const s = totalSeconds % 60;
+        return (m < 10 ? '0' + m : String(m)) + ':' + (s < 10 ? '0' + s : String(s));
+      }
+
+      function readDurationsFromInputs() {
+        const onM = clampNumber(onMinutesInput.value, 0, 999, 0);
+        const onS = clampNumber(onSecondsInput.value, 0, 3599, 0);
+        const offM = clampNumber(offMinutesInput.value, 0, 999, 0);
+        const offS = clampNumber(offSecondsInput.value, 0, 3599, 0);
+        onDuration = Math.max(0, onM * 60 + onS);
+        offDuration = Math.max(0, offM * 60 + offS);
+        if (onDuration === 0 && offDuration === 0) {
+          onDuration = 30;
+          offDuration = 30;
+          onMinutesInput.value = 0;
+          onSecondsInput.value = 30;
+          offMinutesInput.value = 0;
+          offSecondsInput.value = 30;
+        }
+      }
+
+      function syncRemainingToDurations() {
+        remainingOn = onDuration;
+        remainingOff = offDuration;
+      }
+
+      function updateCountdownText() {
+        onCountdown.textContent = mmss(remainingOn);
+        offCountdown.textContent = mmss(remainingOff);
+      }
+
+      function updateModePill() {
+        const modeLabel = mode === 'ON' ? 'ON' : 'OFF';
+        let extra = '';
+        if (bypass) {
+          extra = '· bypass';
+        } else if (!running || manualPaused) {
+          extra = '· paused';
+        } else {
+          extra = '· running';
+        }
+        modeText.textContent = modeLabel + ' ' + extra;
+
+        if (!running || manualPaused) {
+          modePill.classList.add('paused');
+        } else {
+          modePill.classList.remove('paused');
+        }
+      }
+
+      function updateBypassUI() {
+        if (bypass) {
+          bypassButton.classList.add('bypass-on');
+          bypassPill.style.display = 'inline-flex';
+        } else {
+          bypassButton.classList.remove('bypass-on');
+          bypassPill.style.display = 'none';
+        }
+      }
+
+      function getDimTargetVolume() {
+        if (!dimToggle.checked) return 0;
+        const dimPercent = clampNumber(dimPercentInput.value, 1, 99, 20);
+        return baseVolume * (dimPercent / 100);
+      }
+
+      function setEffectiveVolume(value) {
+        effectiveVolume = Math.max(0, Math.min(1, value));
+        const displayLevel = (effectiveVolume * 10).toFixed(1).replace(/\\.0$/, '');
+        effectiveVolumeLabel.textContent = displayLevel;
+
+        const width = Math.round(effectiveVolume * 100);
+        volumeMeterFill.style.width = width + '%';
+      }
+
+      function updateBaseVolumeFromSlider() {
+        const sliderValue = clampNumber(volumeSlider.value, 0, 10, 7);
+        baseVolume = sliderValue / 10;
+        volumeLabel.textContent = sliderValue.toString();
+        if (mode === 'ON' && !fadeActive && !bypass) {
+          setEffectiveVolume(baseVolume);
+        }
+      }
+
+      function startFade(from, to, seconds) {
+        fadeActive = true;
+        fadeFrom = from;
+        fadeTo = to;
+        fadeDuration = Math.max(0.05, seconds);
+        fadeStartTime = performance.now();
+      }
+
+      function stepFade(now) {
+        if (!fadeActive) return;
+        const elapsed = (now - fadeStartTime) / 1000;
+        const t = Math.min(1, elapsed / fadeDuration);
+        const current = fadeFrom + (fadeTo - fadeFrom) * t;
+        setEffectiveVolume(current);
+        if (t >= 1) {
+          fadeActive = false;
+        }
+      }
+
+      function setMode(newMode, options = {}) {
+        const { viaTimer = false } = options;
+        mode = newMode;
+        readDurationsFromInputs();
+        syncRemainingToDurations();
+
+        // Choose target volume
+        if (mode === 'ON') {
+          if (viaTimer && fadeInToggle.checked && !bypass) {
+            startFade(effectiveVolume, baseVolume, clampNumber(fadeInSecondsInput.value, 1, 30, 5));
+          } else if (!bypass) {
+            setEffectiveVolume(baseVolume);
+          }
+        } else {
+          const offTarget = getDimTargetVolume();
+          if (viaTimer && fadeOutToggle.checked && !bypass) {
+            startFade(effectiveVolume, offTarget, clampNumber(fadeOutSecondsInput.value, 1, 30, 5));
+          } else if (!bypass) {
+            setEffectiveVolume(offTarget);
+          }
+        }
+
+        updateModePill();
+        updateButtonsState();
+        updateCountdownText();
+      }
+
+      function updateButtonsState() {
+        if (mode === 'ON') {
+          onButton.classList.add('active-ring');
+          offButton.classList.remove('active-ring');
+        } else {
+          offButton.classList.add('active-ring');
+          onButton.classList.remove('active-ring');
+        }
+      }
+
+      function ensureTimerInterval() {
+        if (timerInterval) return;
+        let lastTime = performance.now();
+        timerInterval = setInterval(() => {
+          const now = performance.now();
+          const deltaSec = (now - lastTime) / 1000;
+          lastTime = now;
+          tick(deltaSec, now);
+        }, 200);
+      }
+
+      function stopTimerInterval() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+
+      function tick(deltaSec, now) {
+        stepFade(now);
+
+        if (!running || bypass) {
+          return;
+        }
+
+        if (mode === 'ON') {
+          remainingOn = Math.max(0, remainingOn - deltaSec);
+          if (remainingOn <= 0) {
+            setMode('OFF', { viaTimer: true });
+          }
+        } else {
+          remainingOff = Math.max(0, remainingOff - deltaSec);
+          if (remainingOff <= 0) {
+            setMode('ON', { viaTimer: true });
+          }
+        }
+        updateCountdownText();
+      }
+
+      function setRunning(value) {
+        running = value;
+        if (running) {
+          ensureTimerInterval();
+        } else if (!running && !fadeActive) {
+          stopTimerInterval();
+        }
+        updateModePill();
+      }
+
+      function savePreset() {
+        readDurationsFromInputs();
+        const preset = { on: onDuration, off: offDuration };
+        const key = preset.on + '|' + preset.off;
+
+        presets = presets.filter(p => (p.on + '|' + p.off) !== key);
+        presets.unshift(preset);
+        if (presets.length > 10) presets = presets.slice(0, 10);
+        renderPresets();
+      }
+
+      function renderPresets() {
+        presetButtonsContainer.innerHTML = '';
+        presets.forEach((p, index) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'preset-chip';
+          btn.textContent = `ON ${mmss(p.on)} · OFF ${mmss(p.off)}`;
+          btn.title = 'Click to load this preset';
+          btn.addEventListener('click', () => {
+            onMinutesInput.value = Math.floor(p.on / 60);
+            onSecondsInput.value = p.on % 60;
+            offMinutesInput.value = Math.floor(p.off / 60);
+            offSecondsInput.value = p.off % 60;
+            readDurationsFromInputs();
+            syncRemainingToDurations();
+            updateCountdownText();
+          });
+          presetButtonsContainer.appendChild(btn);
+        });
+      }
+
+      // --- Event wiring ---
+      onButton.addEventListener('click', () => {
+        manualPaused = false;
+        bypass = false;
+        updateBypassUI();
+        readDurationsFromInputs();
+        syncRemainingToDurations();
+        setMode('ON', { viaTimer: false });
+        setRunning(true);
+      });
+
+      offButton.addEventListener('click', () => {
+        manualPaused = true;
+        setRunning(false);
+        bypass = false;
+        updateBypassUI();
+        setMode('OFF', { viaTimer: false });
+      });
+
+      bypassButton.addEventListener('click', () => {
+        bypass = !bypass;
+        updateBypassUI();
+        if (!bypass) {
+          // resume normal behavior at current mode
+          updateBaseVolumeFromSlider();
+        }
+        updateModePill();
+      });
+
+      volumeSlider.addEventListener('input', () => {
+        updateBaseVolumeFromSlider();
+      });
+
+      [onMinutesInput, onSecondsInput, offMinutesInput, offSecondsInput].forEach(input => {
+        input.addEventListener('change', () => {
+          readDurationsFromInputs();
+          syncRemainingToDurations();
+          updateCountdownText();
+        });
+      });
+
+      dimPercentInput.addEventListener('change', () => {
+        dimPercentInput.value = clampNumber(dimPercentInput.value, 1, 99, 20);
+        if (mode === 'OFF' && !bypass) {
+          setEffectiveVolume(getDimTargetVolume());
+        }
+      });
+
+      dimToggle.addEventListener('change', () => {
+        if (mode === 'OFF' && !bypass) {
+          setEffectiveVolume(getDimTargetVolume());
+        }
+      });
+
+      resetTimerButton.addEventListener('click', () => {
+        readDurationsFromInputs();
+        syncRemainingToDurations();
+        updateCountdownText();
+      });
+
+      savePresetButton.addEventListener('click', () => {
+        savePreset();
+      });
+
+      // --- Initial state ---
+      readDurationsFromInputs();
+      syncRemainingToDurations();
+      updateBaseVolumeFromSlider();
+      setEffectiveVolume(0);
+      updateCountdownText();
+      updateModePill();
+      updateButtonsState();
+      updateBypassUI();
+    })();
+  </script>
+</body>
+</html>
+""")
+
+file_path = "/mnt/data/volume_mute_v41.html"
+with open(file_path, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+file_path
