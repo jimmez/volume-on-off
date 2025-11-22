@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>YT play/pause - v42</title>
+<title>YT play/pause - v43</title>
 <style>
   :root {
     --bg:#0b0b0c; --fg:#f5f7fa; --muted:#a4acb6; --card:#15161a;
@@ -16,6 +16,7 @@
   html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,"Noto Sans");}
   .wrap{max-width:1100px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px}
   .card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:16px}
+  h1{font-size:20px;margin:0 0 8px;color:#e2e8f0}
   h2{font-size:16px;margin:0 0 8px;color:#cbd5e1}
   label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
   input[type="text"],input[type="number"]{width:100%;padding:12px 14px;border-radius:12px;border:1px solid #2a2d33;background:#0f1115;color:#fff;outline:none;font-size:16px}
@@ -42,8 +43,8 @@
   .page{display:none}
   .page.active{display:block}
   .list{display:flex;flex-direction:column;gap:8px;margin-top:8px;max-height:520px;overflow:auto}
-  /* updated: play button far left, then idx, then title... */
-  .item{display:grid;grid-template-columns:auto auto 1fr auto auto auto;gap:8px;align-items:center;background:#0f1115;border:1px solid #2a2d33;border-radius:12px;padding:8px}
+  /* updated: play button, top, idx, title, up, down, delete */
+  .item{display:grid;grid-template-columns:auto auto auto 1fr auto auto auto;gap:8px;align-items:center;background:#0f1115;border:1px solid #2a2d33;border-radius:12px;padding:8px}
   .idx{width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:#23262d;border-radius:8px;color:#cbd5e1;font-size:12px}
   .titleEditable{border:0;background:transparent;color:#fff;font-size:14px;padding:8px;border-radius:8px}
   .titleEditable:focus{outline:1px solid #3a3f47;background:#111319}
@@ -99,20 +100,16 @@
     Running from <span class="mono">file://</span>. Serve via a local server (e.g., <span class="mono">python -m http.server</span>) to avoid embed errors.
   </div>
 
-  <div class="tabs">
-    <button id="tabPlayer" class="btn-tab active">Player</button>
-    <button id="tabUrls" class="btn-tab">URL lists</button>
-    <button id="tabSearch" class="btn-tab">Search</button>
-  </div>
+  <!-- Shared player card (used by both Player and Playlist pages) -->
+  <div class="card" id="playerShell">
+    <h1>YT play/pause - v43</h1>
 
-  <div class="card page active" id="pagePlayer">
-    <h1 style="font-size:20px;margin:0 0 8px;color:#e2e8f0">YT play/pause - v42</h1>
-
-    <!-- Quick links to URL pages & quick add URL -->
+    <!-- Quick links to URL pages & quick add URL & playlist page -->
     <div class="row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap">
       <button id="goSpeechList" class="btn-small" title="Go to Speech URLs">Speech URLs</button>
       <button id="goMusicList" class="btn-small" title="Go to Music URLs">Music URLs</button>
       <button id="goPlaylistList" class="btn-small" title="Go to Playlist URLs">Playlist URLs</button>
+      <button id="goPlaylistPage" class="btn-small" title="Go to Playlist player page">Playlist player</button>
       <button id="quickAddUrlBtn" class="btn-small" title="Quick add URL">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V6h2v5h5v2h-5v5h-2v-5H6v-2h5z"/></svg>
         <span>Quick add URL</span>
@@ -158,10 +155,16 @@
       </div>
     </div>
 
+    <!-- Small boxes: play/pause segment countdown -->
+    <div class="row" style="margin-top:6px;gap:8px;align-items:center">
+      <span id="playSegLeft" class="badge" style="display:none">Play: 0:00</span>
+      <span id="pauseSegLeft" class="badge" style="display:none">Pause: 0:00</span>
+    </div>
+
     <h2>Quick presets (last 10)</h2>
     <div class="chips" id="presetChips"></div>
 
-    <!-- Moved toggles under presets -->
+    <!-- Toggles -->
     <div class="togglesRow">
       <div class="switchWrap">
         <div class="switchLabel">Dim on pause</div>
@@ -183,18 +186,48 @@
         <div class="switchLabel">Fullscreen</div>
         <label class="switch" title="Open in fullscreen (mobile friendly)"><input id="fsToggle" type="checkbox" checked><span class="slider"></span></label>
       </div>
-    </div>
       <div class="switchWrap">
-        <div class="switchLabel">Timer (min)</div>
-        <div class="row" style="gap:8px;align-items:center">
-          <label class="switch" title="Enable session timer"><input id="timerToggle" type="checkbox"><span class="slider"></span></label>
-          <input id="timerMin" type="number" min="1" step="1" value="30" title="Minutes until alert" style="width:90px">
-          <button id="timerResetBtn" class="btn-small" title="Reset timer">Reset timer</button>
-          <span id="timerLeft" class="badge" style="display:none">0:00</span>
-        </div>
+        <div class="switchLabel">Sound only (mute)</div>
+        <label class="switch" title="Toggle sound only (mute/unmute without stopping video)"><input id="soundToggle" type="checkbox"><span class="slider"></span></label>
       </div>
+    </div>
+    <div class="row" style="margin-top:6px;gap:8px;align-items:center">
+      <span id="soundStatus" class="badge" style="display:none">Sound OFF</span>
+    </div>
+
+    <!-- Session timer -->
+    <div class="switchWrap" style="margin-top:10px">
+      <div class="switchLabel">Timer (min)</div>
+      <div class="row" style="gap:8px;align-items:center">
+        <label class="switch" title="Enable session timer"><input id="timerToggle" type="checkbox"><span class="slider"></span></label>
+        <input id="timerMin" type="number" min="1" step="1" value="30" title="Minutes until alert" style="width:90px">
+        <button id="timerResetBtn" class="btn-small" title="Reset timer">Reset timer</button>
+        <span id="timerLeft" class="badge" style="display:none">0:00</span>
+      </div>
+    </div>
 
     <div class="banner" style="margin-top:10px">Space = Play. Pause/Break = Pause. â† / â†’ = Previous / Next.</div>
+  </div>
+
+  <!-- Tabs and sub-pages -->
+  <div class="tabs">
+    <button id="tabPlayer" class="btn-tab active">Player</button>
+    <button id="tabPlaylist" class="btn-tab">Playlist player</button>
+    <button id="tabUrls" class="btn-tab">URL lists</button>
+    <button id="tabSearch" class="btn-tab">Search</button>
+  </div>
+
+  <div class="card page active" id="pagePlayer">
+    <h2>Player</h2>
+    <div class="banner">Use the Speech or Music URL lists together with the player above.</div>
+  </div>
+
+  <div class="card page" id="pagePlaylist">
+    <h2>Playlist player</h2>
+    <div class="banner">
+      Uses the <b>Playlists</b> URL list. Forward = next song in playlist, Prev = previous song.
+      Turn on <b>Random</b> to pick a random video from this playlist.
+    </div>
   </div>
 
   <div class="card page" id="pageUrls">
@@ -232,7 +265,7 @@
         </button>
       </div>
     </div>
-    <div class="banner" style="margin-top:8px">Unlimited items. Titles auto-fetched; click a title to edit. Use â†‘ â†“ or â‡¡Top to reorder. Double-click title to play.</div>
+    <div class="banner" style="margin-top:8px">Unlimited items. Titles auto-fetched; click a title to edit. Use â†‘ â†“ or â‡¡Top to reorder. Double-click title to play. Use âœ• to erase.</div>
     <div class="list" id="list"></div>
   </div>
 
@@ -248,7 +281,7 @@
   </div>
 </div>
 
-<div id="wm" class="watermark">Jimmy James - 22.11.2025 - v42</div>
+<div id="wm" class="watermark">Jimmy James - 22.11.2025 - v43</div>
 
 <script>
 (function(){
@@ -275,37 +308,27 @@ function storageKeyFor(kind){
 }
 
 const tabPlayer=document.getElementById('tabPlayer');
+const tabPlaylist=document.getElementById('tabPlaylist');
 const tabUrls=document.getElementById('tabUrls');
 const tabSearch=document.getElementById('tabSearch');
 const pagePlayer=document.getElementById('pagePlayer');
+const pagePlaylist=document.getElementById('pagePlaylist');
 const pageUrls=document.getElementById('pageUrls');
 const pageSearch=document.getElementById('pageSearch');
 
 function setTab(which){
-  if(which==='player'){
-    tabPlayer.classList.add('active');
-    tabUrls.classList.remove('active');
-    tabSearch.classList.remove('active');
-    pagePlayer.classList.add('active');
-    pageUrls.classList.remove('active');
-    pageSearch.classList.remove('active');
-  } else if(which==='urls'){
-    tabUrls.classList.add('active');
-    tabPlayer.classList.remove('active');
-    tabSearch.classList.remove('active');
-    pageUrls.classList.add('active');
-    pagePlayer.classList.remove('active');
-    pageSearch.classList.remove('active');
-  } else {
-    tabSearch.classList.add('active');
-    tabPlayer.classList.remove('active');
-    tabUrls.classList.remove('active');
-    pageSearch.classList.add('active');
-    pagePlayer.classList.remove('active');
-    pageUrls.classList.remove('active');
-  }
+  tabPlayer.classList.toggle('active', which==='player');
+  tabPlaylist.classList.toggle('active', which==='playlist');
+  tabUrls.classList.toggle('active', which==='urls');
+  tabSearch.classList.toggle('active', which==='search');
+
+  pagePlayer.classList.toggle('active', which==='player');
+  pagePlaylist.classList.toggle('active', which==='playlist');
+  pageUrls.classList.toggle('active', which==='urls');
+  pageSearch.classList.toggle('active', which==='search');
 }
 tabPlayer.onclick=()=>setTab('player');
+tabPlaylist.onclick=()=>{ switchUrlKind('playlists'); setTab('playlist'); };
 tabUrls.onclick=()=>setTab('urls');
 tabSearch.onclick=()=>setTab('search');
 
@@ -376,8 +399,8 @@ async function fetchTitleForId(id){
   try{
     const r = await fetch('https://www.youtube.com/oembed?format=json&url='+encodeURIComponent(url));
     if(r.ok){
-      const j = await r.json();
-      if(j && j.title) return j.title;
+      const j2 = await r.json();
+      if(j2 && j2.title) return j2.title;
     }
   }catch(e){}
   return '(untitled video)';
@@ -407,6 +430,12 @@ function moveToTop(idx){
   if(currentIndex===idx) currentIndex=0;
   saveList(); renderList();
 }
+function deleteItem(idx){
+  if(idx<0 || idx>=items.length) return;
+  items.splice(idx,1);
+  if(currentIndex>=items.length) currentIndex=items.length-1;
+  saveList(); renderList();
+}
 function updateTitle(idx, newTitle){
   items[idx].title = newTitle.trim() || items[idx].title;
   saveList(); renderList(false);
@@ -420,13 +449,16 @@ function renderList(){
     row.className='item';
     const btnPlay = document.createElement('button'); btnPlay.className='btn-icon'; btnPlay.title='Play this';
     btnPlay.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7L8 5z"/></svg>';
-    btnPlay.onclick=()=>{ let r=0; if(randToggle.checked && document.getElementById('randLastToggle').checked){ const id=items[idx]?.id; r=getLastPos(id); } loadByIndex(idx,true,r); setTab('player'); };
+    btnPlay.onclick=()=>{ let r=0; if(randToggle.checked && document.getElementById('randLastToggle').checked){ const id=items[idx]?.id; r=getLastPos(id); } loadByIndex(idx,true,r); setTab(currentListKind==='playlists' ? 'playlist' : 'player'); };
+
+    const btnTop = document.createElement('button'); btnTop.className='btn-icon'; btnTop.title='Move to top';
+    btnTop.textContent='â‡¡Top'; btnTop.onclick=()=>moveToTop(idx);
 
     const idxBox = document.createElement('div'); idxBox.className='idx'; idxBox.textContent = idx+1;
     const title = document.createElement('input'); title.className='titleEditable'; title.value = it.title || '(untitled video)';
     title.title = 'Edit title. Double-click to play.';
     title.addEventListener('change', ()=> updateTitle(idx, title.value));
-    title.addEventListener('dblclick', ()=>{ let r=0; if(randToggle.checked && document.getElementById('randLastToggle').checked){ const id=items[idx]?.id; r=getLastPos(id); } loadByIndex(idx, true, r); setTab('player'); });
+    title.addEventListener('dblclick', ()=>{ let r=0; if(randToggle.checked && document.getElementById('randLastToggle').checked){ const id=items[idx]?.id; r=getLastPos(id); } loadByIndex(idx, true, r); setTab(currentListKind==='playlists' ? 'playlist' : 'player'); });
 
     const btnUp = document.createElement('button'); btnUp.className='btn-icon'; btnUp.title='Move up';
     btnUp.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.59 5.58L20 12 12 4 4 12z"/></svg>';
@@ -434,16 +466,19 @@ function renderList(){
     const btnDown = document.createElement('button'); btnDown.className='btn-icon'; btnDown.title='Move down';
     btnDown.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 12l8 8 8-8-1.41-1.41L13 16.17V4h-2v12.17L5.41 10.59 4 12z"/></svg>';
     btnDown.onclick=()=>moveItem(idx,1);
-    const btnTop = document.createElement('button'); btnTop.className='btn-icon'; btnTop.title='Move to top';
-    btnTop.textContent='â‡¡Top'; btnTop.onclick=()=>moveToTop(idx);
 
-    // order: play button, idx, title, up, down, top
+    const btnDel = document.createElement('button'); btnDel.className='btn-icon'; btnDel.title='Erase';
+    btnDel.textContent='âœ•';
+    btnDel.onclick=()=>deleteItem(idx);
+
+    // order: play, top, idx, title, up, down, delete
     row.appendChild(btnPlay);
+    row.appendChild(btnTop);
     row.appendChild(idxBox);
     row.appendChild(title);
     row.appendChild(btnUp);
     row.appendChild(btnDown);
-    row.appendChild(btnTop);
+    row.appendChild(btnDel);
 
     if(idx===currentIndex){ row.style.boxShadow='0 0 0 2px rgba(62,86,168,.5) inset'; }
     list.appendChild(row);
@@ -543,6 +578,10 @@ function loadTimerSettings(){
     if (j){
       if (typeof j.timerOn === 'boolean') timerToggle.checked = j.timerOn;
       if (typeof j.timerMin === 'number' && j.timerMin > 0){ timerMinInput.value = String(j.timerMin); }
+      if (typeof j.mute === 'boolean'){
+        const soundToggle = document.getElementById('soundToggle');
+        if(soundToggle){ soundToggle.checked = j.mute; }
+      }
     }
   }catch(e){}
   timerEnabled = !!timerToggle.checked;
@@ -623,6 +662,45 @@ startTimerCountdown = function(){
   }, 500);
 };
 
+// --- Segment (play/pause) countdown boxes
+const playSegEl = document.getElementById('playSegLeft');
+const pauseSegEl = document.getElementById('pauseSegLeft');
+let segInterval = null;
+
+function clearSegInterval(){
+  if(segInterval){ clearInterval(segInterval); segInterval=null; }
+  if(playSegEl){ playSegEl.style.display='none'; }
+  if(pauseSegEl){ pauseSegEl.style.display='none'; }
+}
+function startSegCountdown(mode, seconds){
+  clearSegInterval();
+  seconds = Math.max(0, Math.floor(seconds||0));
+  if(mode==='play' && playSegEl){
+    playSegEl.style.display='inline-flex';
+    if(pauseSegEl) pauseSegEl.style.display='none';
+    playSegEl.textContent = 'Play: ' + fmtSec(seconds);
+  }else if(mode==='pause' && pauseSegEl){
+    pauseSegEl.style.display='inline-flex';
+    if(playSegEl) playSegEl.style.display='none';
+    pauseSegEl.textContent = 'Pause: ' + fmtSec(seconds);
+  }else{
+    return;
+  }
+  if(seconds===0) return;
+  segInterval = setInterval(()=>{
+    seconds--;
+    if(seconds<0) seconds=0;
+    if(mode==='play' && playSegEl){
+      playSegEl.textContent = 'Play: ' + fmtSec(seconds);
+    }else if(mode==='pause' && pauseSegEl){
+      pauseSegEl.textContent = 'Pause: ' + fmtSec(seconds);
+    }
+    if(seconds<=0){
+      clearSegInterval();
+    }
+  },1000);
+}
+
 // --- YouTube search via piped.video public API
 
 function addAndPlayById(id, titleHint){
@@ -641,7 +719,7 @@ function addAndPlayById(id, titleHint){
     const nextResume = (randToggle.checked && document.getElementById('randLastToggle').checked) ? getLastPos(id) : 0;
     currentIndex = 0;
     ensurePlayer(id, nextResume);
-    setTab('player');
+    setTab(currentListKind==='playlists' ? 'playlist' : 'player');
     startPlayStepper();
   })();
 }
@@ -769,6 +847,10 @@ function loadSettings(){
       document.getElementById('randLastToggle').checked = !!j.randLast;
       document.getElementById('bypassToggle').checked = !!j.bypass;
       if(typeof j.fs==='boolean'){ document.getElementById('fsToggle').checked = j.fs; }
+      if(typeof j.mute === 'boolean'){
+        const soundToggle = document.getElementById('soundToggle');
+        if(soundToggle){ soundToggle.checked = j.mute; }
+      }
     }
   }catch(e){}
 }
@@ -822,6 +904,8 @@ const dimToggle=document.getElementById('dimToggle');
 const randToggle=document.getElementById('randToggle');
 const bypassToggle=document.getElementById('bypassToggle');
 const fsToggle=document.getElementById('fsToggle');
+const soundToggle=document.getElementById('soundToggle');
+const soundStatus=document.getElementById('soundStatus');
 
 function installAllowAttrs(){
   const iframe = document.querySelector('#player iframe');
@@ -880,7 +964,20 @@ function ensurePlayer(id, startSeconds){
     player = new YT.Player('player',{
       videoId: id||'',
       playerVars:{ enablejsapi:1, origin:origin, rel:0, modestbranding:1, playsinline:1 },
-      events:{ onReady:()=>{ installAllowAttrs(); if(pendingLoad){ try{ player.loadVideoById({videoId: pendingLoad.id, startSeconds: pendingLoad.start}); }catch(e){} pendingLoad=null; } }, onStateChange:onStateChange, onError:onError }
+      events:{ onReady:()=>{ 
+        installAllowAttrs(); 
+        if(pendingLoad){ 
+          try{ player.loadVideoById({videoId: pendingLoad.id, startSeconds: pendingLoad.start}); }catch(e){} 
+          pendingLoad=null; 
+        } 
+        // apply mute state from toggle
+        if(soundToggle && soundToggle.checked){
+          try{ player.mute(); }catch(e){}
+          if(soundStatus) soundStatus.style.display='inline-flex';
+        }
+      }, 
+      onStateChange:onStateChange, 
+      onError:onError }
     });
     const t=setInterval(()=>{ installAllowAttrs(); if(document.querySelector('#player iframe')) clearInterval(t); },50);
   }else if(id){
@@ -931,6 +1028,7 @@ function setPauseUIActive(on){
 async function startPlainPlay(){
   stepRunning=false;
   clearTimers();
+  clearSegInterval();
   setPauseUIActive(false);
   setPlayUIActive(true);
   maybeAutoFS();
@@ -949,6 +1047,7 @@ async function startPlayStepper(){
     return startPlainPlay();
   }
   stepRunning=true; clearTimers();
+  clearSegInterval();
   setPlayUIActive(true);
   const playS=Math.max(1,getPlaySec());
   const pauseS=Math.max(1,getPauseSec());
@@ -960,8 +1059,9 @@ async function startPlayStepper(){
     pauseCoverPlayer.style.display='none';
     setPauseUIActive(false);
     maybeAutoFS();
+    startSegCountdown('play', playS);
     const ok = await gestureSafePlay();
-    if(!ok){ stepRunning=false; setPlayUIActive(false); return; }
+    if(!ok){ stepRunning=false; setPlayUIActive(false); clearSegInterval(); return; }
     timers.p=setTimeout(cyclePause, playS*1000);
   }
   function cyclePause(){
@@ -970,6 +1070,7 @@ async function startPlayStepper(){
     if (dimToggle.checked) pauseCoverPlayer.style.display='block';
     setPauseUIActive(true);
     setPlayUIActive(false);
+    startSegCountdown('pause', pauseS);
     timers.q=setTimeout(()=>{
       if(randToggle.checked && items.length>0){
         let nxt = Math.floor(Math.random()*items.length);
@@ -989,6 +1090,7 @@ async function startPlayStepper(){
 function pauseNow(){
   stepRunning=false;
   clearTimers();
+  clearSegInterval();
   try{ const id=items[currentIndex]?.id; const t=player.getCurrentTime && player.getCurrentTime(); if(id && typeof t==='number'){ recordLastPos(id, t); } }catch(e){}
   try{ player.pauseVideo(); }catch(e){}
   if (document.getElementById('dimToggle').checked) pauseCoverPlayer.style.display='block';
@@ -1071,6 +1173,28 @@ document.getElementById('fsToggle').addEventListener('change', (e)=>{
   if(e.target.checked){ requestFS(); } else { if(document.fullscreenElement){ document.exitFullscreen().catch(()=>{}); } }
 });
 
+// Sound-only toggle (mute/unmute)
+if(soundToggle){
+  soundToggle.addEventListener('change', ()=>{
+    const muteOn = !!soundToggle.checked;
+    try{
+      if(player){
+        if(muteOn) player.mute();
+        else player.unMute();
+      }
+    }catch(e){}
+    if(soundStatus){
+      soundStatus.style.display = muteOn ? 'inline-flex' : 'none';
+    }
+    // persist mute state
+    try{
+      const raw = localStorage.getItem(S_SETTINGS);
+      const prev = raw ? JSON.parse(raw) : {};
+      prev.mute = muteOn;
+      localStorage.setItem(S_SETTINGS, JSON.stringify(prev));
+    }catch(e){}
+  });
+}
 
 // Seed URLs (speech list default)
 const SEED_URLS=[
@@ -1125,6 +1249,7 @@ function switchUrlKind(kind){
   // save current list first
   saveList();
   loadList(kind);
+  currentListKind = kind;
   currentIndex = -1;
   renderList();
   updateUrlTabActive();
@@ -1138,7 +1263,7 @@ document.querySelectorAll('#urlTabs .btn-tab').forEach(btn=>{
   });
 });
 
-// from Player page: go directly to each URL list page
+// from Player card: go directly to each URL list page
 function openList(kind){
   switchUrlKind(kind);
   setTab('urls');
@@ -1147,7 +1272,10 @@ document.getElementById('goSpeechList').onclick = ()=> openList('speech');
 document.getElementById('goMusicList').onclick = ()=> openList('music');
 document.getElementById('goPlaylistList').onclick = ()=> openList('playlists');
 
-// Quick add URL button on Player page
+// from Player card: go straight to playlist player page
+document.getElementById('goPlaylistPage').onclick = ()=>{ switchUrlKind('playlists'); setTab('playlist'); };
+
+// Quick add URL button on Player card
 document.getElementById('quickAddUrlBtn').addEventListener('click', async ()=>{
   const raw = (prompt('Paste YouTube URL') || '').trim();
   if(!raw) return;
@@ -1184,6 +1312,11 @@ document.getElementById('quickAddUrlBtn').addEventListener('click', async ()=>{
   renderList();
   updateUrlTabActive();
   ensurePlayer(items[0]?.id || "jiJ-wZch_vQ", 0);
+  // apply mute state from settings if needed
+  if(soundToggle && soundToggle.checked){
+    try{ player.mute(); }catch(e){}
+    if(soundStatus) soundStatus.style.display='inline-flex';
+  }
   // Presets
   renderPresetChips();
   // Try to go fullscreen shortly after load if pref is already on (mobile UX)
