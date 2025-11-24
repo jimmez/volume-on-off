@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>YT play/pause - v46</title>
+<title>YT play/pause - v47</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <style>
   :root{
@@ -156,7 +156,7 @@
   .list{display:flex;flex-direction:column;gap:6px;margin-top:6px;max-height:360px;overflow:auto;}
   .item{
     display:grid;
-    grid-template-columns:auto auto 1fr auto auto;
+    grid-template-columns:auto auto auto 1fr auto auto auto auto;
     gap:6px;
     align-items:center;
     background:#0f1115;
@@ -194,7 +194,7 @@
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>YT play/pause - v46</h1>
+    <h1>YT play/pause - v47</h1>
 
     <div class="playerWrap">
       <div id="player"></div>
@@ -299,8 +299,8 @@
     <h2>URL lists</h2>
 
     <div class="tabs">
-      <button class="btn-tab active" data-kind="speech">Speech</button>
-      <button class="btn-tab" data-kind="music">Music</button>
+      <button class="btn-tab" data-kind="speech">Speech</button>
+      <button class="btn-tab active" data-kind="music">Music</button>
       <button class="btn-tab" data-kind="playlists">Playlists</button>
     </div>
 
@@ -417,7 +417,7 @@ tabPlaylist.onclick = function(){
 
 // ----- lists (speech / music / playlists) -----
 var LIST_KINDS = ["speech","music","playlists"];
-var currentKind = "speech";
+var currentKind = "music";
 var items = [];  // [{id,title}]
 var currentIndex = -1;
 
@@ -480,22 +480,51 @@ function renderList(){
       saveList();
     };
 
-    var delBtn = document.createElement("button");
-    delBtn.className = "btn-icon";
-    delBtn.textContent = "Trash";
-    delBtn.title = "Delete this URL";
-    delBtn.onclick = function(){ deleteItem(idx); };
+    var trashBtn = document.createElement("button");
+    trashBtn.className = "btn-icon";
+    trashBtn.textContent = "Trash";
+    trashBtn.title = "Delete this URL";
+    trashBtn.onclick = function(){ deleteItem(idx); };
+
+    var copyBtn = document.createElement("button");
+    copyBtn.className = "btn-icon";
+    copyBtn.textContent = "Copy";
+    copyBtn.title = "Copy video URL";
+    copyBtn.onclick = function(){
+      var url = idToUrl(it.id);
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(url).catch(function(){
+          alert("URL: " + url);
+        });
+      }else{
+        alert("URL: " + url);
+      }
+    };
+
+    var upBtn = document.createElement("button");
+    upBtn.className = "btn-icon";
+    upBtn.textContent = "Up";
+    upBtn.title = "Move up";
+    upBtn.onclick = function(){ moveItem(idx, -1); };
+
+    var downBtn = document.createElement("button");
+    downBtn.className = "btn-icon";
+    downBtn.textContent = "Down";
+    downBtn.title = "Move down";
+    downBtn.onclick = function(){ moveItem(idx, 1); };
 
     row.appendChild(playBtn);
     row.appendChild(topBtn);
     row.appendChild(idxBox);
     row.appendChild(titleInput);
-    row.appendChild(delBtn);
+    row.appendChild(trashBtn);
+    row.appendChild(copyBtn);
+    row.appendChild(upBtn);
+    row.appendChild(downBtn);
 
     root.appendChild(row);
   });
 }
-
 async function addUrl(raw){
   var id = parseVideoId(raw);
   if(!id) return;
@@ -514,6 +543,17 @@ function moveToTop(idx){
   var x = items.splice(idx,1)[0];
   items.unshift(x);
   currentIndex = 0;
+  saveList();
+  renderList();
+}
+function moveItem(idx, dir){
+  var ni = idx + dir;
+  if(ni < 0 || ni >= items.length) return;
+  var tmp = items[idx];
+  items[idx] = items[ni];
+  items[ni] = tmp;
+  if(currentIndex === idx) currentIndex = ni;
+  else if(currentIndex === ni) currentIndex = idx;
   saveList();
   renderList();
 }
@@ -1010,8 +1050,8 @@ document.addEventListener("keydown", function(e){
 
 // ----- init -----
 (function init(){
-  // default to speech list
-  loadList("speech");
+  // default to music list
+  loadList("music");
   renderList();
   // try to fetch titles for existing items once
   refreshTitlesForList();
