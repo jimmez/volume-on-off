@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>YT play/pause - v47</title>
+<title>YT play/pause - v48</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <style>
   :root{
@@ -194,7 +194,7 @@
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>YT play/pause - v47</h1>
+    <h1>YT play/pause - v48</h1>
 
     <div class="playerWrap">
       <div id="player"></div>
@@ -353,9 +353,24 @@ function parseVideoId(input){
   if(/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
   return null;
 }
+function parsePlaylistId(input){
+  input = (input||"").trim();
+  if(!input) return null;
+  try{
+    var u = new URL(input);
+    if(u.hostname.indexOf("youtube.com") !== -1){
+      var list = u.searchParams.get("list");
+      if(list && /^[a-zA-Z0-9_-]+$/.test(list)) return list;
+    }
+  }catch(e){}
+  return null;
+}
+
 function idToUrl(id){return "https://www.youtube.com/watch?v="+encodeURIComponent(id);}
-async function fetchTitleForId(id){
-  var url = idToUrl(id);
+async function fetchTitleForId(id, isPlaylist){
+  var url = isPlaylist
+    ? ("https://www.youtube.com/playlist?list="+encodeURIComponent(id))
+    : idToUrl(id);
   // Try noembed first
   try{
     var r = await fetch("https://noembed.com/embed?url="+encodeURIComponent(url));
@@ -527,10 +542,18 @@ function renderList(){
 }
 async function addUrl(raw){
   var id = parseVideoId(raw);
+  var isPlaylist = false;
+  if(!id && currentKind === "playlists"){
+    var pid = parsePlaylistId(raw);
+    if(pid){
+      id = pid;
+      isPlaylist = true;
+    }
+  }
   if(!id) return;
   var title = id;
   try{
-    title = await fetchTitleForId(id);
+    title = await fetchTitleForId(id, isPlaylist);
   }catch(e){}
   if(!title) title = id;
   items.unshift({id:id, title:title});
@@ -645,7 +668,8 @@ function refreshTitlesForList(){
     if(!it || !it.id) return;
     var need = !it.title || it.title === it.id || it.title === "(untitled)";
     if(!need) return;
-    fetchTitleForId(it.id).then(function(t){
+    var isPlaylist = (currentKind === "playlists");
+    fetchTitleForId(it.id, isPlaylist).then(function(t){
       if(t && t !== it.title){
         it.title = t;
         saveList();
@@ -769,7 +793,7 @@ function updateTimerBadge(){
   var ms = timerDeadline - Date.now();
   if(ms < 0) ms = 0;
   badge.style.display = "inline-flex";
-  badge.textContent = fmtSec(Math.floor(ms/1000));
+  badge.textContent = "Left: " + fmtSec(Math.floor(ms/1000));
 }
 function stopTimer(){
   timerEnabled = false;
@@ -827,7 +851,7 @@ var muteToggle = $("muteToggle");
 function ensurePlayer(id){
   if(!player){
     player = new YT.Player("player",{
-      videoId: id || "",
+      videoId: "",
       playerVars:{ rel:0, modestbranding:1, playsinline:1 },
       events:{
         onStateChange:function(e){
@@ -843,8 +867,17 @@ function ensurePlayer(id){
         }
       }
     });
-  }else if(id){
-    player.loadVideoById(id);
+  }
+  if(id){
+    if(currentKind === "playlists" && player.loadPlaylist){
+      try{
+        player.loadPlaylist({listType:"playlist", list:id});
+      }catch(e){
+        player.loadVideoById(id);
+      }
+    }else{
+      player.loadVideoById(id);
+    }
   }
 }
 function setPlayUI(isPlaying, isPaused){
