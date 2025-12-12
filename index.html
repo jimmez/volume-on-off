@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>YT play/pause - v48</title>
+<title>YT play/pause - v50</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <style>
   :root{
@@ -79,6 +79,22 @@
     background:rgba(0,0,0,0.75);
     pointer-events:none;
     display:none;
+  }
+  /* watermark */
+  .wm{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    top:20%;
+    background:rgba(0,0,0,0.45);
+    color:#e5e7eb;
+    font-size:12px;
+    padding:6px 10px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.15);
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .25s ease;
   }
   label{font-size:12px;color:var(--muted);display:block;margin-bottom:2px;}
   input[type="number"],input[type="text"]{
@@ -194,11 +210,12 @@
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>YT play/pause - v48</h1>
+    <h1>YT play/pause - v50</h1>
 
     <div class="playerWrap">
       <div id="player"></div>
       <div id="pauseOverlay" class="pauseOverlay"></div>
+      <div id="wm" class="wm">Jimmy James &middot; 12.12.2025 &middot; v50</div>
     </div>
 
     <div class="row" style="margin-top:8px;">
@@ -215,7 +232,7 @@
           <div class="row">
             <input id="playMin" type="number" min="0" value="0">
             <span>:</span>
-            <input id="playSec" type="number" min="0" value="10">
+            <input id="playSec" type="number" min="0" value="40">
           </div>
         </div>
         <div>
@@ -223,7 +240,7 @@
           <div class="row">
             <input id="pauseMin" type="number" min="0" value="0">
             <span>:</span>
-            <input id="pauseSec" type="number" min="0" value="5">
+            <input id="pauseSec" type="number" min="0" value="40">
           </div>
         </div>
       </div>
@@ -286,16 +303,12 @@
 
   <div class="tabs">
     <button id="tabPlayer" class="btn-tab active">Player</button>
-    <button id="tabUrls" class="btn-tab">URL lists</button>
+    <button id="tabUrls" class="btn-tab active">URL lists</button>
     <button id="tabPlaylist" class="btn-tab">Playlist player</button>
   </div>
 
-  <div id="pagePlayer" class="card page active">
-    <h2>Player</h2>
-    <div class="banner">Use the Speech or Music URL lists below. Playlist player uses the Playlists list.</div>
-  </div>
-
-  <div id="pageUrls" class="card page">
+  <!-- Always visible URL lists -->
+  <div id="pageUrls" class="card page active">
     <h2>URL lists</h2>
 
     <div class="tabs">
@@ -321,6 +334,11 @@
     </div>
 
     <div id="urlList" class="list"></div>
+  </div>
+
+  <div id="pagePlayer" class="card page active">
+    <h2>Player</h2>
+    <div class="banner">Use the Speech or Music URL lists below. Playlist player uses the Playlists list.</div>
   </div>
 
   <div id="pagePlaylist" class="card page">
@@ -351,7 +369,26 @@ function parseVideoId(input){
     }
   }catch(e){}
   if(/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+  // allow bare qs like "v=ID&..."
+  if(input.indexOf("v=")===0){
+    try{
+      var qs = new URLSearchParams(input);
+      var vv = qs.get("v");
+      if(vv && /^[a-zA-Z0-9_-]{11}$/.test(vv)) return vv;
+    }catch(e){}
+  }
   return null;
+}
+function parseStartSeconds(input){
+  try{
+    var u = new URL(input);
+    var t = u.searchParams.get("t");
+    if(!t) return 0;
+    if(/^\\d+$/.test(t)) return +t;
+    var m = t.match(/(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?/i);
+    if(m){ var h=+(m[1]||0), mi=+(m[2]||0), s=+(m[3]||0); return h*3600+mi*60+s; }
+  }catch(e){}
+  return 0;
 }
 function parsePlaylistId(input){
   input = (input||"").trim();
@@ -371,7 +408,6 @@ async function fetchTitleForId(id, isPlaylist){
   var url = isPlaylist
     ? ("https://www.youtube.com/playlist?list="+encodeURIComponent(id))
     : idToUrl(id);
-  // Try noembed first
   try{
     var r = await fetch("https://noembed.com/embed?url="+encodeURIComponent(url));
     if(r.ok){
@@ -379,7 +415,6 @@ async function fetchTitleForId(id, isPlaylist){
       if(j && j.title) return j.title;
     }
   }catch(e){}
-  // Fallback to YouTube oEmbed
   try{
     var r2 = await fetch("https://www.youtube.com/oembed?format=json&url="+encodeURIComponent(url));
     if(r2.ok){
@@ -402,7 +437,7 @@ function fmtSec(t){
   return m + ":" + (s<10?"0":"") + s;
 }
 
-// ----- tabs -----
+// ----- tabs (URL lists always visible) -----
 var tabPlayer = $("tabPlayer");
 var tabUrls = $("tabUrls");
 var tabPlaylist = $("tabPlaylist");
@@ -411,29 +446,27 @@ var pageUrls = $("pageUrls");
 var pagePlaylist = $("pagePlaylist");
 
 function setTab(which){
-  tabPlayer.classList.toggle("active", which==="player");
-  tabUrls.classList.toggle("active", which==="urls");
+  tabPlayer.classList.toggle("active", which!=="playlist");
+  tabUrls.classList.add("active"); // always
   tabPlaylist.classList.toggle("active", which==="playlist");
 
-  pagePlayer.classList.toggle("active", which==="player");
-  pageUrls.classList.toggle("active", which==="urls");
+  pagePlayer.classList.toggle("active", which!=="playlist");
+  pageUrls.classList.add("active");
   pagePlaylist.classList.toggle("active", which==="playlist");
 }
 tabPlayer.onclick = function(){ setTab("player"); };
 tabUrls.onclick = function(){ setTab("urls"); };
 tabPlaylist.onclick = function(){
-  // ensure playlist list is active
   currentKind = "playlists";
   loadList(currentKind);
   renderList();
-  // we still use same player, just different list
   setTab("playlist");
 };
 
 // ----- lists (speech / music / playlists) -----
 var LIST_KINDS = ["speech","music","playlists"];
 var currentKind = "music";
-var items = [];  // [{id,title}]
+var items = [];  // [{id,title,start?}]
 var currentIndex = -1;
 
 function storageKey(kind){ return "YT44_LIST_"+(kind||currentKind).toUpperCase(); }
@@ -452,13 +485,37 @@ function loadList(kind){
     items = [];
   }
 }
-
 function saveList(){
   try{
     localStorage.setItem(storageKey(), JSON.stringify(items));
   }catch(e){}
 }
+function ensureSeedMusic(){
+  var k = storageKey("music");
+  if(!localStorage.getItem(k)){
+    var seeds = [
+      "https://www.youtube.com/watch?v=9LGnNDdjXRk&t=294s",
+      "https://www.youtube.com/watch?v=CihmFK_vg_I&t=576s",
+      "https://youtu.be/s_MaTHI_-PA?si=YLur8Hi9jGGfeOWe",
+      "https://youtu.be/BnqKB7rtiNg?si=eJgN4AJPaAODRpRr",
+      "v=BnqKB7rtiNg&list=PLhHSTA1xJUMqxtYkBOTKN1j2kcjcfMnj1&index=18",
+      "https://youtu.be/7YdVfZ4Kcw0?si=0sKVip6d3-muMpys",
+      "https://youtu.be/CihmFK_vg_I?si=JukTYf23EfKBOS35"
+    ];
+    var uniq = {};
+    var arr = [];
+    seeds.forEach(function(u){
+      var id = parseVideoId(u);
+      if(id && !uniq[id]){
+        uniq[id]=1;
+        arr.push({id:id, title:id, start:parseStartSeconds(u)});
+      }
+    });
+    try{ localStorage.setItem(k, JSON.stringify(arr)); }catch(e){}
+  }
+}
 
+// build list UI
 function renderList(){
   var root = $("urlList");
   if(!root) return;
@@ -556,7 +613,7 @@ async function addUrl(raw){
     title = await fetchTitleForId(id, isPlaylist);
   }catch(e){}
   if(!title) title = id;
-  items.unshift({id:id, title:title});
+  items.unshift({id:id, title:title, start:parseStartSeconds(raw)});
   saveList();
   renderList();
 }
@@ -595,7 +652,6 @@ Array.prototype.forEach.call(document.querySelectorAll("#pageUrls .btn-tab[data-
   btn.onclick = function(){
     var k = btn.getAttribute("data-kind");
     if(LIST_KINDS.indexOf(k) === -1) k = "speech";
-    // save previous list
     saveList();
     loadList(k);
     currentKind = k;
@@ -618,7 +674,7 @@ $("addUrlBtn").onclick = async function(){
 
 function exportCurrentListToJSON(){
   var data = items.map(function(it){
-    return {url: idToUrl(it.id), title: it.title||""};
+    return {url: idToUrl(it.id), title: it.title||"", start: it.start||0};
   });
   var blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
   var a = document.createElement("a");
@@ -640,15 +696,17 @@ function importListFromJSONFile(file){
       parsed.forEach(function(entry){
         var src = "";
         var title = "";
+        var start = 0;
         if(typeof entry === "string"){
           src = entry;
         }else if(entry && typeof entry === "object"){
           src = entry.url || entry.href || entry.id || "";
           title = entry.title || "";
+          start = entry.start||0;
         }
         var id = parseVideoId(String(src||"").trim());
         if(id){
-          next.push({id:id, title:title || id});
+          next.push({id:id, title:title || id, start:start});
         }
       });
       if(next.length){
@@ -663,7 +721,6 @@ function importListFromJSONFile(file){
 }
 
 function refreshTitlesForList(){
-  // Fetch titles only for entries that look like raw ids or have empty/placeholder titles
   items.forEach(function(it, idx){
     if(!it || !it.id) return;
     var need = !it.title || it.title === it.id || it.title === "(untitled)";
@@ -679,28 +736,18 @@ function refreshTitlesForList(){
   });
 }
 
-
-// export / import buttons
 var exportBtn = $("exportBtn");
 var importBtn = $("importBtn");
 var importFile = $("importFile");
-
-if(exportBtn){
-  exportBtn.onclick = function(){
-    exportCurrentListToJSON();
-  };
-}
+if(exportBtn){ exportBtn.onclick = function(){ exportCurrentListToJSON(); }; }
 if(importBtn && importFile){
-  importBtn.onclick = function(){
-    importFile.click();
-  };
+  importBtn.onclick = function(){ importFile.click(); };
   importFile.onchange = function(e){
     var f = e.target.files && e.target.files[0];
     if(f) importListFromJSONFile(f);
     importFile.value = "";
   };
 }
-
 
 // ----- timer + presets -----
 function getPlaySec(){
@@ -737,7 +784,13 @@ function loadPresets(){
   }catch(e){ return []; }
 }
 function savePresets(arr){
-  try{ localStorage.setItem(PRESETS_KEY, JSON.stringify(arr)); }catch(e){}
+  try{ localStorage.setItem(PRESETS_KEY, JSON.stringify(arr)); }catch(e){}}
+function seedPresetsIfEmpty(){
+  var arr = loadPresets();
+  if(!arr || !arr.length){
+    arr = [{play:40,pause:40},{play:40,pause:120}];
+    savePresets(arr);
+  }
 }
 function pushPreset(play, pause){
   var arr = loadPresets();
@@ -755,7 +808,6 @@ function renderPresets(activePlay, activePause){
   arr.forEach(function(p){
     var chip = document.createElement("div");
     chip.className = "chip";
-    var key = p.play+":"+p.pause;
     if(p.play===activePlay && p.pause===activePause) chip.classList.add("active");
     chip.textContent = fmtSec(p.play)+" | "+fmtSec(p.pause);
     chip.onclick = function(){
@@ -767,16 +819,11 @@ function renderPresets(activePlay, activePause){
   });
 }
 
-// auto-select number inputs on focus for quick overwrite
-function autoSelectOnFocus(id){
+// auto-select number inputs on focus
+["playMin","playSec","pauseMin","pauseSec","timerMin"].forEach(function(id){
   var el = $(id);
   if(!el) return;
-  el.addEventListener("focus", function(){
-    try{ el.select(); }catch(e){}
-  });
-}
-["playMin","playSec","pauseMin","pauseSec","timerMin"].forEach(function(id){
-  autoSelectOnFocus(id);
+  el.addEventListener("focus", function(){ try{ el.select(); }catch(e){} });
 });
 
 // session timer
@@ -814,7 +861,6 @@ function startTimer(){
       timerIv = null;
       timerEnabled = false;
       updateTimerBadge();
-      // when timer hits 0, pause and do not auto-resume
       pauseNow();
       return;
     }
@@ -843,12 +889,14 @@ window.onYouTubeIframeAPIReady = function(){ ytReadyResolve(); };
 })();
 
 var pauseOverlay = $("pauseOverlay");
+var wm = $("wm");
+var wmShown = false;
 var dimToggle = $("dimToggle");
 var randomToggle = $("randomToggle");
 var bypassToggle = $("bypassToggle");
 var muteToggle = $("muteToggle");
 
-function ensurePlayer(id){
+function ensurePlayer(id, start){
   if(!player){
     player = new YT.Player("player",{
       videoId: "",
@@ -858,6 +906,11 @@ function ensurePlayer(id){
           if(e.data === YT.PlayerState.PLAYING){
             pauseOverlay.style.display = "none";
             setPlayUI(true,false);
+            if(!wmShown){
+              wmShown = true;
+              wm.style.opacity = "1";
+              setTimeout(function(){ wm.style.opacity = "0"; }, 7000);
+            }
           }else if(e.data === YT.PlayerState.PAUSED){
             if(dimToggle.checked) pauseOverlay.style.display = "block";
             setPlayUI(false,true);
@@ -873,10 +926,10 @@ function ensurePlayer(id){
       try{
         player.loadPlaylist({listType:"playlist", list:id});
       }catch(e){
-        player.loadVideoById(id);
+        player.loadVideoById({videoId:id, startSeconds: start||0});
       }
     }else{
-      player.loadVideoById(id);
+      player.loadVideoById({videoId:id, startSeconds: start||0});
     }
   }
 }
@@ -958,7 +1011,7 @@ function loadByIndex(idx, autoStart){
   if(idx<0 || idx>=items.length) return;
   currentIndex = idx;
   var it = items[idx];
-  ensurePlayer(it.id);
+  ensurePlayer(it.id, it.start||0);
   renderList();
   if(autoStart){
     startPlayStepper();
@@ -966,7 +1019,6 @@ function loadByIndex(idx, autoStart){
 }
 
 function handleEnded(){
-  // When video finishes, go to next in same list and start again
   var ni = nextIndex();
   if(ni < 0) return;
   loadByIndex(ni, !bypassToggle.checked);
@@ -994,7 +1046,8 @@ function pauseNow(){
 function startPlayStepper(){
   if(!player){
     if(items.length === 0) return;
-    ensurePlayer(items[ currentIndex>=0 ? currentIndex : 0 ].id);
+    var it = items[ currentIndex>=0 ? currentIndex : 0 ];
+    ensurePlayer(it.id, it.start||0);
   }
   if(bypassToggle.checked){
     startPlainPlay();
@@ -1011,7 +1064,6 @@ function startPlayStepper(){
     if(!stepRunning) return;
     pauseOverlay.style.display = "none";
     setPlayUI(true,false);
-    // In "sound only" mode, ensure sound is on during play segments
     if(muteToggle.checked && player && player.unMute){
       try{ player.unMute(); }catch(e){}
     }
@@ -1021,12 +1073,8 @@ function startPlayStepper(){
   }
   function cyclePause(){
     if(!stepRunning) return;
-    // In "sound only" mode, do NOT pause the video â€“ keep it playing but muted
     if(muteToggle.checked && player){
-      try{
-        if(player.mute) player.mute();
-        if(player.playVideo) player.playVideo();
-      }catch(e){}
+      try{ if(player.mute) player.mute(); if(player.playVideo) player.playVideo(); }catch(e){}
       if(dimToggle.checked) pauseOverlay.style.display = "block";
     }else{
       if(player) player.pauseVideo();
@@ -1037,7 +1085,7 @@ function startPlayStepper(){
     stepTimeoutPause = setTimeout(function(){
       if(randomToggle.checked){
         var ni = nextIndex();
-        if(ni>=0) ensurePlayer(items[ni].id);
+        if(ni>=0) ensurePlayer(items[ni].id, items[ni].start||0);
         currentIndex = ni;
       }
       cyclePlay();
@@ -1049,17 +1097,11 @@ function startPlayStepper(){
 // controls
 $("playBtn").onclick = function(){ startPlayStepper(); };
 $("pauseBtn").onclick = function(){ pauseNow(); };
-$("nextBtn").onclick = function(){
-  var ni = nextIndex();
-  if(ni>=0) loadByIndex(ni,true);
-};
-$("prevBtn").onclick = function(){
-  var pi = prevIndex();
-  if(pi>=0) loadByIndex(pi,true);
-};
-muteToggle.onchange = function(){
+$("nextBtn").onclick = function(){ var ni = nextIndex(); if(ni>=0) loadByIndex(ni,true); };
+$("prevBtn").onclick = function(){ var pi = prevIndex(); if(pi>=0) loadByIndex(pi,true); };
+$("muteToggle").onchange = function(){
   if(!player) return;
-  if(muteToggle.checked) player.mute();
+  if(this.checked) player.mute();
   else player.unMute();
 };
 
@@ -1083,21 +1125,24 @@ document.addEventListener("keydown", function(e){
 
 // ----- init -----
 (function init(){
-  // default to music list
+  // seed defaults if presets empty
+  seedPresetsIfEmpty();
+  renderPresets(getPlaySec(), getPauseSec());
+  // seed music on first run and default to music
+  ensureSeedMusic();
   loadList("music");
   renderList();
-  // try to fetch titles for existing items once
   refreshTitlesForList();
-  // presets
-  renderPresets(getPlaySec(), getPauseSec());
   // YouTube API ready
   ytReady.then(function(){
     if(items.length>0){
-      ensurePlayer(items[0].id);
+      ensurePlayer(items[0].id, items[0].start||0);
     }else{
-      ensurePlayer(null);
+      ensurePlayer(null,0);
     }
   });
+  // keep URLs always visible + Player
+  setTab("player");
 })();
 </script>
 </body>
