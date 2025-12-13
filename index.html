@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>YT play/pause - v55</title>
+<title>YT play/pause - v57</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <style>
   :root{
@@ -107,22 +107,22 @@
     border-radius:999px;
     will-change:width;
     /* default color is play-green; JS toggles to red on pause */
-    background:linear-gradient(90deg,var(--bar-green-start),var(--bar-green-end));
+    background:linear-gradient(90deg,#00c853 0%, #00c853 80%, #f6d365 100%);
   }
   .bargraphFill.pause{
-    background:linear-gradient(90deg,var(--bar-red-start),var(--bar-red-end));
+    background:linear-gradient(90deg,#ef4444 0%, #ef4444 80%, #f6d365 100%);
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>YT play/pause - v55</h1>
+    <h1>YT play/pause - v57</h1>
 
     <div class="playerWrap">
       <div id="player"></div>
       <div id="pauseOverlay" class="pauseOverlay"></div>
-      <div id="wm" class="wm">Jimmy James &middot; 12.12.2025 &middot; v55</div>
+      <div id="wm" class="wm">Jimmy James &middot; 12.12.2025 &middot; v57</div>
     </div>
 
     <!-- Green/Red shrinking bargraph -->
