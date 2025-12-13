@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>YT play/pause - v59</title>
+<title>YT play/pause - v58</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <style>
   :root{
@@ -91,7 +91,7 @@
   .tiny{font-size:11px;color:var(--muted);} .timerRow{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;}
 
   /* Play/Pause bargraph (below video) */
-  .bargraphWrap{
+  .bargraphWrap{position:relative;
     margin-top:8px;
     width:100%;
     height:8px;
@@ -101,28 +101,28 @@
     overflow:hidden;
     box-shadow:0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 12px rgba(62,130,255,0.12);
   }
-  .bargraphFill{
+  .bargraphFill{position:absolute;right:0;
     height:100%;
     width:100%;
     border-radius:999px;
     will-change:width;
     /* default color is play-green; JS toggles to red on pause */
-    background:linear-gradient(90deg,var(--bar-green-start),var(--bar-green-end));
+    background:linear-gradient(90deg,#00c853 0%, #00c853 60%, #f6d365 100%);
   }
   .bargraphFill.pause{
-    background:linear-gradient(90deg,var(--bar-red-start),var(--bar-red-end));
+    background:linear-gradient(90deg,#ef4444 0%, #ef4444 60%, #f6d365 100%);
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>YT play/pause - v59</h1>
+    <h1>YT play/pause - v58</h1>
 
     <div class="playerWrap">
       <div id="player"></div>
       <div id="pauseOverlay" class="pauseOverlay"></div>
-      <div id="wm" class="wm">Jimmy James &middot; 12.12.2025 &middot; v59</div>
+      <div id="wm" class="wm">Jimmy James &middot; 12.12.2025 &middot; v58</div>
     </div>
 
     <!-- Green/Red shrinking bargraph -->
@@ -229,19 +229,7 @@
     <div class="banner">Use the Speech or Music URL lists below. Playlist player uses the Playlists list.</div>
   </div>
 
-  
-<div id="pagePlaylist" class="card page">
-  <div class="row" style="gap:16px;margin-top:6px;">
-    <div class="switchWrap">
-      <span>Playlist: next after pause</span>
-      <label class="switch"><input id="plNextAfterPause" type="checkbox"><span class="slider"></span></label>
-    </div>
-    <div class="switchWrap">
-      <span>Playlist: random track</span>
-      <label class="switch"><input id="plRandomToggle" type="checkbox"><span class="slider"></span></label>
-    </div>
-  </div>
-
+  <div id="pagePlaylist" class="card page">
     <h2>Playlist player</h2>
     <div class="banner tiny">
       Uses the <b>Playlists</b> URL list. Forward = next in list, Prev = previous. Random uses random item.
@@ -334,31 +322,10 @@ function loadList(kind){
   try{ var raw = localStorage.getItem(storageKey(k)); items = raw ? (JSON.parse(raw)||[]) : []; }catch(e){ items=[]; }
 }
 function saveList(){ try{ localStorage.setItem(storageKey(), JSON.stringify(items)); }catch(e){} }
-
-function ensureSeedPlaylists(){
-  var k = storageKey("playlists");
-  if(!localStorage.getItem(k)){
-    var seeds=[
-      "https://www.youtube.com/watch?v=vWg_YGj7eTU&list=PL2wC40QAchNrvqOCjlieHhrkNDZbsyv_K",
-      "https://www.youtube.com/watch?v=V3jjH-_LVG4&list=PLrgkRQ9954-Rv7gNesYeAzmjwzuBbkM47",
-      "https://youtube.com/playlist?list=PLjiB1Gm1BUm9X3IEMTSe-KWsEgiNnS1ll&si=bKwzwo7ZCUmO0uzY",
-      "https://youtube.com/playlist?list=PL290F940EDA519EB6&si=eaLUTZuveCTQTKXi",
-      "https://youtube.com/playlist?list=PLQykDkwE4yKynXO4ta9ozx7DwUKUZTckz&si=AGVVkyQvovDiX0p4",
-      "https://youtube.com/playlist?list=PLQKOLPhSimDM9SQS8zurY7Oyewy_Mi0zS&si=sbkhaV_MHHd4t1mV",
-      "https://youtube.com/playlist?list=PL0L_zzLQSZ2VxkxDi_PtZgkHH8wKTA0HM&si=9aTUrgs3evBWrF_1"
-    ];
-    var uniq={},arr=[];
-    seeds.forEach(function(u){
-      var pid = parsePlaylistId(u);
-      if(pid && !uniq[pid]){ uniq[pid]=1; arr.push({id:pid, title:pid}); }
-    });
-    try{ localStorage.setItem(k, JSON.stringify(arr)); }catch(e){}
-  }
-}
 function ensureSeedMusic(){
   var k = storageKey("music");
   if(!localStorage.getItem(k)){
-    var seeds=["https://youtu.be/JeooSth_JCY?si=Oe0SCF3wRkNYW6qG",
+    var seeds=["https://www.youtube.com/watch?v=9LGnNDdjXRk&t=318s",
       "https://www.youtube.com/watch?v=9LGnNDdjXRk&t=294s",
       "https://www.youtube.com/watch?v=CihmFK_vg_I&t=576s",
       "https://youtu.be/s_MaTHI_-PA?si=YLur8Hi9jGGfeOWe",
@@ -504,21 +471,6 @@ function startBar(totalSec, isPause){
   barRAF = requestAnimationFrame(tick);
 }
 
-
-// Playlist options
-var PL_NEXT_KEY="YT50_PL_NEXT_AFTER_PAUSE";
-var PL_RAND_KEY="YT50_PL_RANDOM";
-function loadPlaylistOptions(){
-  var nextVal = (localStorage.getItem(PL_NEXT_KEY)==="1");
-  var randVal = (localStorage.getItem(PL_RAND_KEY)==="1");
-  var nextEl = document.getElementById("plNextAfterPause");
-  var randEl = document.getElementById("plRandomToggle");
-  if(nextEl){ nextEl.checked = nextVal; nextEl.onchange=function(){ localStorage.setItem(PL_NEXT_KEY, this.checked?'1':'0'); }; }
-  if(randEl){ randEl.checked = randVal; randEl.onchange=function(){ localStorage.setItem(PL_RAND_KEY, this.checked?'1':'0'); }; }
-}
-function isPlaylistNextAfterPause(){ return localStorage.getItem(PL_NEXT_KEY)==="1"; }
-function isPlaylistRandom(){ return localStorage.getItem(PL_RAND_KEY)==="1"; }
-
 // ----- YouTube player + stepping -----
 var player;
 var ytReadyResolve; var ytReady = new Promise(function(res){ ytReadyResolve = res; });
@@ -538,7 +490,7 @@ function ensurePlayer(id, start){
           pauseOverlay.style.display="none"; setPlayUI(true,false);
           if(!wmShown){ wmShown=true; wm.style.opacity="1"; setTimeout(function(){ wm.style.opacity="0"; }, 7000); }
         }else if(e.data===YT.PlayerState.PAUSED){
-          if(dimToggle.checked) pauseOverlay.style.display="block"; setPlayUI(false,true); stopBar();
+          if(dimToggle.checked) pauseOverlay.style.display="block"; setPlayUI(false,true); if(!inPauseSegment){ stopBar(); }
         }else if(e.data===YT.PlayerState.ENDED){
           handleEnded();
         }
@@ -598,6 +550,7 @@ function startPlayStepper(){
 
   function cyclePlay(){
     if(!stepRunning) return;
+    inPauseSegment = false;
     pauseOverlay.style.display="none"; setPlayUI(true,false);
     if(muteToggle.checked && player && player.unMute){ try{ player.unMute(); }catch(e){} }
     if(player) player.playVideo();
@@ -607,26 +560,13 @@ function startPlayStepper(){
   }
   function cyclePause(){
     if(!stepRunning) return;
+    inPauseSegment = true;
     if(muteToggle.checked && player){ try{ if(player.mute) player.mute(); if(player.playVideo) player.playVideo(); }catch(e){} if(dimToggle.checked) pauseOverlay.style.display="block"; }
     else{ if(player) player.pauseVideo(); if(dimToggle.checked) pauseOverlay.style.display="block"; }
     setPlayUI(false,true);
     startSegCountdown("pause", pauseS);
     startBar(pauseS, true);   // red
-    
-stepTimeoutPause = setTimeout(function(){
-      if(currentKind==="playlists" && isPlaylistNextAfterPause()){
-        var ni;
-        if(isPlaylistRandom()){
-          if(items.length===1){ ni=0; } else { do{ ni=Math.floor(Math.random()*items.length);} while(ni===currentIndex); }
-        }else{
-          ni = (currentIndex<0)?0:((currentIndex+1)%items.length);
-        }
-        if(ni>=0){ currentIndex=ni; ensurePlayer(items[ni].id, 0); }
-      } else if(randomToggle.checked){
-        var ni2 = nextIndex();
-        if(ni2>=0){ ensurePlayer(items[ni2].id, items[ni2].start||0); currentIndex = ni2; }
-      }
-
+    stepTimeoutPause = setTimeout(function(){
       if(randomToggle.checked){ var ni=nextIndex(); if(ni>=0) ensurePlayer(items[ni].id, items[ni].start||0); currentIndex=ni; }
       cyclePlay();
     }, pauseS*1000);
@@ -653,7 +593,7 @@ document.addEventListener("keydown", function(e){
 // ----- init -----
 (function init(){
   seedPresetsIfEmpty(); renderPresets(getPlaySec(), getPauseSec());
-  ensureSeedMusic(); ensureSeedPlaylists(); loadList("music"); renderList(); refreshTitlesForList(); loadPlaylistOptions();
+  ensureSeedMusic(); loadList("music"); renderList(); refreshTitlesForList();
   ytReady.then(function(){ if(items.length>0){ ensurePlayer(items[0].id, items[0].start||0); } else { ensurePlayer(null,0); } });
   setTab("player");
 })();
